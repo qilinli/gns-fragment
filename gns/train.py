@@ -21,34 +21,41 @@ from gns import reading_utils
 from gns import data_loader
 from gns import evaluate
 
+# Meta parameters
 flags.DEFINE_enum(
-    'mode', 'train', ['train', 'valid', 'rollout'],
-    help='Train model, validation or rollout evaluation.')
-flags.DEFINE_integer('batch_size', 2, help='The batch size.')
-flags.DEFINE_float('noise_std', 6.7e-4, help='The std deviation of the noise.')
+    'mode', 'train', ['train', 'valid', 'rollout'], help=(
+        'Train model, validation or rollout evaluation.'))
 flags.DEFINE_string('data_path', None, help='The dataset directory.')
 flags.DEFINE_string('model_path', 'models/', help=('The path for saving checkpoints of the model.'))
 flags.DEFINE_string('output_path', 'rollouts/', help='The path for saving outputs (e.g. rollouts).')
-flags.DEFINE_string('model_file', None,
-                    help=('Model filename (.pt) to resume from. Can also use "latest" to default to newest file.'))
-flags.DEFINE_string('train_state_file', 'train_state.pt', help=(
-    'Train state filename (.pt) to resume from. Can also use "latest" to default to newest file.'))
 
+# Model parameters
+flags.DEFINE_float('connection_radius', 0.03, help='connectivity radius for graph.')
+flags.DEFINE_integer('layers', 10, help='Number of GNN layers.')
+flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
+
+# Training parameters
+flags.DEFINE_integer('batch_size', 2, help='The batch size.')
+flags.DEFINE_float('noise_std', 6.7e-4, help='The std deviation of the noise.')
 flags.DEFINE_integer('ntraining_steps', int(1E6), help='Number of training steps.')
 flags.DEFINE_integer('nsave_steps', int(5000), help='Number of steps at which to save the model.')
+
+# Continue training parameters
+flags.DEFINE_string('model_file', None, help=(
+    'Model filename (.pt) to resume from. Can also use "latest" to default to newest file.'))
+flags.DEFINE_string('train_state_file', 'train_state.pt', help=(
+    'Train state filename (.pt) to resume from. Can also use "latest" to default to newest file.'))
 
 # Learning rate parameters
 flags.DEFINE_float('lr_init', 1e-3, help='Initial learning rate.')
 flags.DEFINE_float('lr_decay', 0.1, help='Learning rate decay.')
 flags.DEFINE_integer('lr_decay_steps', int(4e5), help='Learning rate decay steps.')
 
-# qilin
-flags.DEFINE_string('project_name', 'GNS-tmp', help=('project name for wandb log.'))
-flags.DEFINE_string('run_name', 'runrunrun', help=('Run name for wandb log.'))
-flags.DEFINE_float('connection_radius', 0.03, help='connectivity radius for graph.')
-flags.DEFINE_integer('layers', 10, help='Number of GNN layers.')
+# Wandb log parameters
 flags.DEFINE_bool('log', False, help='if use wandb log.')
-flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
+flags.DEFINE_string('project_name', 'GNS-tmp', help='project name for wandb log.')
+flags.DEFINE_string('run_name', 'runrunrun', help='Run name for wandb log.')
+
 
 FLAGS = flags.FLAGS
 
