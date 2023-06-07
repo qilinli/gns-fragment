@@ -352,9 +352,9 @@ def train(
                             lowest_eval_loss = eval_loss_mean
                             if step > 10000:
                                 simulator.save(model_path + FLAGS.run_name + '-model-' + str(step) + '.pt')
-                            # train_state = dict(optimizer_state=optimizer.state_dict(), global_train_state={"step": step})
-                            # torch.save(train_state, f"{model_path}train_state-{step}.pt")
-                            
+                                train_state = dict(optimizer_state=optimizer.state_dict(), global_train_state={"step": step})
+                                torch.save(train_state, f"{model_path}{FLAGS.run_name}-train_state-{step}.pt")
+
                         # log
                         log["val/loss"] = sum(eval_loss_total) / len(eval_loss_total)
                         log["val/loss-position"] = sum(eval_loss_position) / len(eval_loss_position)
