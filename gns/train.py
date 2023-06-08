@@ -160,10 +160,10 @@ def optimizer_to(optim, device):
                         subparam._grad.data = subparam._grad.data.to(device)
  
                         
-def load_model(simulator, model_path, FLAGS):
+def load_model(simulator, FLAGS, device):
     if FLAGS.model_file == "latest" and FLAGS.train_state_file == "latest":
         # find the latest model, assumes model and train_state files are in step.
-        fnames = glob.glob(f"{model_path}*model*pt")
+        fnames = glob.glob(f"{FLAGS.model_path}*model*pt")
         max_model_number = 0
         expr = re.compile(".*model-(\d+).pt")
         for fname in fnames:
@@ -174,13 +174,13 @@ def load_model(simulator, model_path, FLAGS):
         FLAGS.model_file = f"model-{max_model_number}.pt"
         FLAGS.train_state_file = f"train_state-{max_model_number}.pt"
 
-    if os.path.exists(model_path + FLAGS.model_file) and os.path.exists(
-        model_path + FLAGS.train_state_file):
+    if os.path.exists(FLAGS.model_path + FLAGS.model_file) and os.path.exists(
+        FLAGS.model_path + FLAGS.train_state_file):
         # load model
-        simulator.load(model_path + FLAGS.model_file)
+        simulator.load(FLAGS.model_path + FLAGS.model_file)
 
         # load train state
-        train_state = torch.load(model_path + FLAGS.train_state_file)
+        train_state = torch.load(FLAGS.model_path + FLAGS.train_state_file)
         # set optimizer state
         optimizer = torch.optim.Adam(simulator.parameters())
         optimizer.load_state_dict(train_state["optimizer_state"])
@@ -214,7 +214,7 @@ def train(
         
     # If model_path does exist and model_file and train_state_file exist continue training.
     if FLAGS.model_file is not None:
-        simulator, step = load_model(FLAGS)
+        simulator, step = load_model(simulator, FLAGS, device)
         
     simulator.train()
     simulator.to(device)
