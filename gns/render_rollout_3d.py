@@ -12,7 +12,7 @@ import os
 
 flags.DEFINE_string("rollout_dir", None, help="Directory where rollout.pkl are located")
 flags.DEFINE_string("rollout_name", None, help="Name of rollout `.pkl` file")
-flags.DEFINE_integer("step_stride", 2, help="Stride of steps to skip.")
+flags.DEFINE_integer("step_stride", 3, help="Stride of steps to skip.")
 flags.DEFINE_enum("output_mode", "gif", ["gif", "vtk"], help="Type of render output")
 flags.DEFINE_enum("dataset", "RC", ["RC", "Fragment"], help="Which data to render")
 

@@ -12,8 +12,8 @@ from gns import reading_utils
 from gns import data_loader
 
 INPUT_SEQUENCE_LENGTH = 6  # So we can calculate the last 5 velocities.
-NUM_PARTICLE_TYPES = 4
-KINEMATIC_PARTICLE_ID = 10
+NUM_PARTICLE_TYPES = 2     # 0 beam, 1 load head, 2 long, 3 hoop, 4 broken particle
+EROSIONAL_PARTICLE_ID = 4  # so broken particle will not contribute to loss
 
 
 def rollout_rmse(pred, gt):
@@ -67,8 +67,8 @@ def rollout(
     pred_positions = []
     pred_strains = []
     
-    kinematic_mask = (particle_types == KINEMATIC_PARTICLE_ID).clone().detach().to(device)
-    kinematic_mask = kinematic_mask.bool()[:, None].expand(-1, particle_dim)
+    erosinal_mask = (particle_types == EROSIONAL_PARTICLE_ID).clone().detach().to(device)
+    erosinal_mask = erosinal_mask.bool()[:, None].expand(-1, particle_dim)
     
     start_time = time.time()
     for step in range(nsteps):
@@ -79,13 +79,13 @@ def rollout(
             particle_types=particle_types,
         )
 
-        # Update kinematic particles from prescribed trajectory.
+        # Update erosinal particles from prescribed trajectory.
         next_position_ground_truth = ground_truth_positions[:, step]
         next_strain_ground_truth = ground_truth_strains[step, :]
         next_position = torch.where(
-            kinematic_mask, next_position_ground_truth, next_position)
+            erosinal_mask, next_position_ground_truth, next_position)
         pred_strain = torch.where(
-            kinematic_mask[:, 0], next_strain_ground_truth, pred_strain)
+            erosinal_mask[:, 0], next_strain_ground_truth, pred_strain)
         pred_positions.append(next_position)
         pred_strains.append(pred_strain)
 
@@ -93,6 +93,10 @@ def rollout(
         # and appending the next position at the end.
         current_positions = torch.cat(
             [current_positions[:, 1:], next_position[:, None, :]], dim=1)
+        
+        # Append gt to do 'one-step' prediction in rollout
+        # current_positions = torch.cat(
+        #     [current_positions[:, 1:], next_position_ground_truth[:, None, :]], dim=1)       
     
     run_time = time.time() - start_time
     
