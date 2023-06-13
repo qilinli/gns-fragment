@@ -150,19 +150,19 @@ class LearnedSimulator(nn.Module):
     # Normalized clipped distances to lower and upper boundaries.
     # boundaries are an array of shape [num_dimensions, 2], where the second
     # axis, provides the lower/upper boundaries.
-    boundaries = torch.tensor(
-        self._boundaries, requires_grad=False).float().to(self._device)
-    distance_to_lower_boundary = (
-        most_recent_position - boundaries[:, 0][None])
-    distance_to_upper_boundary = (
-        boundaries[:, 1][None] - most_recent_position)
-    distance_to_boundaries = torch.cat(
-        [distance_to_lower_boundary, distance_to_upper_boundary], dim=1)
-    normalized_clipped_distance_to_boundaries = torch.clamp(
-        distance_to_boundaries / self._connectivity_radius, -1., 1.)
-    ## The distance to 4 boundaries (top/bottom/left/right), correspond to x_min, y_min, x_max, y_max
-    ## node_features shape (nparticles, 10+4)
-    node_features.append(normalized_clipped_distance_to_boundaries)
+    # boundaries = torch.tensor(
+    #     self._boundaries, requires_grad=False).float().to(self._device)
+    # distance_to_lower_boundary = (
+    #     most_recent_position - boundaries[:, 0][None])
+    # distance_to_upper_boundary = (
+    #     boundaries[:, 1][None] - most_recent_position)
+    # distance_to_boundaries = torch.cat(
+    #     [distance_to_lower_boundary, distance_to_upper_boundary], dim=1)
+    # normalized_clipped_distance_to_boundaries = torch.clamp(
+    #     distance_to_boundaries / self._connectivity_radius, -1., 1.)
+    # ## The distance to 4 boundaries (top/bottom/left/right), correspond to x_min, y_min, x_max, y_max
+    # ## node_features shape (nparticles, 10+4)
+    # node_features.append(normalized_clipped_distance_to_boundaries)
     # node_features.append(normalized_clipped_distance_to_boundaries[:, 0:1])  # only the left boundary, x_min
     
     # Particle type

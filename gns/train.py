@@ -32,6 +32,7 @@ flags.DEFINE_string('output_path', 'rollouts/', help='The path for saving output
 # Model parameters
 flags.DEFINE_float('connection_radius', 0.03, help='connectivity radius for graph.')
 flags.DEFINE_integer('layers', 10, help='Number of GNN layers.')
+flags.DEFINE_integer('hidden_dim', 32, help='Number of neurons in hidden layers.')
 flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 
 # Training parameters
@@ -61,7 +62,7 @@ FLAGS = flags.FLAGS
 
 Stats = collections.namedtuple('Stats', ['mean', 'std'])
 
-INPUT_SEQUENCE_LENGTH = 6  # So we can calculate the last 5 velocities.
+INPUT_SEQUENCE_LENGTH = 3  # So we can calculate the last 5 velocities.
 NUM_PARTICLE_TYPES = 2
 KINEMATIC_PARTICLE_ID = 10
 
@@ -412,12 +413,12 @@ def _get_simulator(
     
     simulator = learned_simulator.LearnedSimulator(
         particle_dimensions=FLAGS.dim,  # xyz
-        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 9 + 6,  # timesteps * 2 (dim) + 16 (particle type embedding) + 4 boundary distance 
+        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 9,  # timesteps * 3 (dim) + 9 (particle type embedding) + 6 boundary distance 
         nedge_in=FLAGS.dim + 1,    # input edge features, relative displacement in all dims + distance between two nodes
-        latent_dim=64,
+        latent_dim=FLAGS.hidden_dim,
         nmessage_passing_steps=FLAGS.layers,
-        nmlp_layers=2,
-        mlp_hidden_dim=64,
+        nmlp_layers=1,
+        mlp_hidden_dim=FLAGS.hidden_dim,
         connectivity_radius=FLAGS.connection_radius,
         boundaries=np.array(metadata['bounds']),
         normalization_stats=normalization_stats,

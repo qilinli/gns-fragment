@@ -11,9 +11,9 @@ from gns import noise_utils
 from gns import reading_utils
 from gns import data_loader
 
-INPUT_SEQUENCE_LENGTH = 6  # So we can calculate the last 5 velocities.
+INPUT_SEQUENCE_LENGTH = 3  # So we can calculate the last 5 velocities.
 NUM_PARTICLE_TYPES = 2     # 0 beam, 1 load head, 2 long, 3 hoop, 4 broken particle
-EROSIONAL_PARTICLE_ID = 4  # so broken particle will not contribute to loss
+EROSIONAL_PARTICLE_ID = 10  # so broken particle will not contribute to loss
 
 
 def rollout_rmse(pred, gt):
