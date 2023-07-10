@@ -18,8 +18,8 @@ class SamplesDataset(torch.utils.data.Dataset):
         self._input_length_sequence = input_length_sequence
         self._dimension = self._data[0][0].shape[-1]  # particle dim, 2 for xy, 3 for xyz
         
-        # Qilin, skip particle types and strains in self._data
-        self._data_lengths = [x.shape[0] - self._input_length_sequence for x, _, _ in self._data]
+        # Qilin, skip particle type, strains and meta in self._data
+        self._data_lengths = [x.shape[0] - self._input_length_sequence for x, _, _, _ in self._data]
         self._length = sum(self._data_lengths)
 
         # pre-compute cumulative lengths
@@ -49,7 +49,8 @@ class SamplesDataset(torch.utils.data.Dataset):
         n_particles_per_example = positions.shape[0]
         next_position = self._data[trajectory_idx][0][time_idx]
         next_strain = self._data[trajectory_idx][2][time_idx]
-
+        meta_feature = self._data[trajectory_idx][3]
+        
         # data sample as a diectionary consisting of input, output, meta
         data_sample = {'input': {}, 'output': {}, 'meta': {}}
         data_sample['input']['positions'] = positions
@@ -59,6 +60,7 @@ class SamplesDataset(torch.utils.data.Dataset):
         data_sample['output']['next_strain'] = next_strain
         data_sample['meta']['trajectory_idx'] = trajectory_idx
         data_sample['meta']['time_idx'] = time_idx
+        data_sample['meta']['meta_feature'] = meta_feature
         
         return data_sample 
 
@@ -71,6 +73,7 @@ def collate_fn(batch):
     next_strain_list = []
     trajectory_idx_list = []
     time_idx_list = []
+    meta_feature_list = []
 
     for data_sample in batch:
         position_list.append(data_sample['input']['positions'])
@@ -80,7 +83,8 @@ def collate_fn(batch):
         next_strain_list.append(data_sample['output']['next_strain'])
         trajectory_idx_list.append(data_sample['meta']['trajectory_idx'])
         time_idx_list.append(data_sample['meta']['time_idx'])
-
+        meta_feature_list.append(data_sample['meta']['meta_feature'])
+        
     # data batch as a diectionary consisting of input, output, meta
     # of type torch.float32 or int (particle_type, n_particles_per_example)
     data_batch = {'input': {}, 'output': {}, 'meta': {}}
@@ -91,6 +95,7 @@ def collate_fn(batch):
     data_batch['output']['next_strain'] = torch.tensor(np.concatenate(next_strain_list)).to(torch.float32).contiguous() # shape (nparticles*batch_size,)
     data_batch['meta']['trajectory_idx'] = torch.tensor(trajectory_idx_list).contiguous()                               # shape (batch_size,)
     data_batch['meta']['time_idx'] = torch.tensor(time_idx_list).contiguous()                                           # shape (batch_size,)
+    data_batch['meta']['meta_feature'] = torch.tensor(np.concatenate(meta_feature_list)).to(torch.float32).contiguous()      # shape (batch_size, 7)
     
     return data_batch
 
@@ -111,7 +116,7 @@ class TrajectoriesDataset(torch.utils.data.Dataset):
         return self._length
 
     def __getitem__(self, idx):
-        positions, _particle_type, strains = self._data[idx]   # qilin, with strain
+        positions, _particle_type, strains, meta_feature = self._data[idx]   # qilin, with strain
         positions = np.transpose(positions, (1, 0, 2)) # nparticles, timesteps, dimension
         particle_type = np.full(positions.shape[0], _particle_type, dtype=int)
         n_particles_per_example = positions.shape[0]
@@ -129,7 +134,9 @@ class TrajectoriesDataset(torch.utils.data.Dataset):
         data_traj['strains'] = torch.tensor(strains).to(torch.float32).contiguous()
          # scalar
         data_traj['trajectory_idx'] = idx                                              
-    
+        # shape(7,
+        data_traj['meta_feature'] = torch.tensor(meta_feature).to(torch.float32).contiguous()
+        
         return data_traj
 
 

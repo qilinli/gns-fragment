@@ -5,14 +5,13 @@ CUDA_VISIBLE_DEVICES=0 python -m gns.train --mode=train --data_path=/home/jovyan
 CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=./data/Concrete3D/ --model_path=./models/Concrete3D/ --output_path=./rollouts/Concrete3D/ --batch_size=1 --noise_std=0.001 --connection_radius=15 --layers=10 --lr_init=0.001 --ntraining_steps=300000 --lr_decay_steps=80000 --dim=3d --project_name=GNS-3D --run_name=ns1e-3 --log=False
 
 # Rollout
-CUDA_VISIBLE_DEVICES=1 python -m gns.train -mode=rollout --data_path=/home/jovyan/work/data_temp/fragment/Fragment/ --model_path=./models/Fragment/ --model_file=ns0.01_R15_L5N32-model-25000.pt --output_path=./rollouts/Fragment/ --noise_std=0.01 --dim=3 --connection_radius=15 --layers=5 --hidden_dim=32
+CUDA_VISIBLE_DEVICES=6 python -m gns.train -mode=rollout --data_path=/home/jovyan/work/data_temp/fragment/Fragment/ --model_path=./models/Fragment/ns0.1_R17_L5N64_strength/ --model_file=model-039000.pt --output_path=./rollouts/Fragment/ --noise_std=0.1 --dim=3 --connection_radius=17 --layers=5 --hidden_dim=64
 
 CUDA_VISIBLE_DEVICES=5 python -m gns.train -mode=rollout --data_path=./data/Concrete2D-C-mps/ --model_path=./models/Concrete2D-C-mps/ --model_file=mps_bs2_ns6.7e-5_R0.01_I1M_proceassed-model-307000.pt --output_path=./rollouts/Concrete2D-C/ --noise_std=0.000067 --dim=2d --connection_radius=0.01
 
 # Visualisation
-python -m gns.render_rollout_1d --rollout_path=rollouts/Concrete1D/rollout_0.pkl --output_path=rollouts/Concrete1D/rollout_0.gif
+python -m gns.render_rollout_3d --rollout_path=rollouts/Fragment/rollout_0.pkl --output_path=rollouts/Fragment/rollout_0.jif
 
-CUDA_VISIBLE_DEVICES=7 python -m gns.train -mode=rollout --data_path=./data/Concrete1D/ --model_path=./models/Concrete1D/ --model_file=noise6.7e-4_R0.04_bs2_lr1e-3_step500k-model-326000.pt --output_path=./rollouts/Concrete1D-new/ --noise_std=0.00067 --dim=1d --connection_radius=0.03
 
 # Notes
 - If net config changed before evaluation, load weights may fail

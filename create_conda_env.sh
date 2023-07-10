@@ -6,5 +6,6 @@ conda activate gns
 conda install -y pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 conda install -y pyg -c pyg
 conda install -y scikit-learn-intelex
-cd work/gns_1GPU/
+cd work/gns-fragment
 conda install -y --file requirements.txt 
+python -m ipykernel install --user --name=gns

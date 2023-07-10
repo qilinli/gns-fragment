@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 import tree
@@ -11,8 +10,8 @@ from gns import noise_utils
 from gns import reading_utils
 from gns import data_loader
 
-INPUT_SEQUENCE_LENGTH = 3  # So we can calculate the last 5 velocities.
-NUM_PARTICLE_TYPES = 2     # 0 beam, 1 load head, 2 long, 3 hoop, 4 broken particle
+INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 5 velocities.
+NUM_PARTICLE_TYPES = 2     # 0 beam, 1 rebar
 EROSIONAL_PARTICLE_ID = 10  # so broken particle will not contribute to loss
 
 
@@ -31,7 +30,7 @@ def rollout_rmse(pred, gt):
     squared_diff = np.square(pred - gt).reshape(num_timesteps, -1)
     loss = np.sqrt(np.cumsum(np.mean(squared_diff, axis=1), axis=0)/np.arange(1, num_timesteps+1))
 
-    for show_step in range(0, num_timesteps, 3):
+    for show_step in range(0, num_timesteps, 1):
         if show_step < num_timesteps:
             print('Testing rmse  @ step %d loss: %.2e'%(show_step, loss[show_step]))
         else: break
@@ -48,6 +47,7 @@ def rollout(
         strains: torch.tensor,
         nsteps: int,
         particle_dim: int,
+        meta_feature: torch.tensor,
         device):
     """Rolls out a trajectory by applying the model recursively.
   
@@ -77,6 +77,7 @@ def rollout(
             current_positions,
             nparticles_per_example=[n_particles_per_example],
             particle_types=particle_types,
+            meta_feature=meta_feature
         )
 
         # Update erosinal particles from prescribed trajectory.

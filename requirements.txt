@@ -4,4 +4,6 @@ numpy
 dm-tree
 matplotlib
 wandb
+ipykernel
+torch-cluster
 

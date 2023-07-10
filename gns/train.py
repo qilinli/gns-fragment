@@ -2,6 +2,7 @@ import collections
 import json
 import numpy as np
 import os
+import os.path as osp
 import sys
 import torch
 import pickle
@@ -21,6 +22,9 @@ from gns import reading_utils
 from gns import data_loader
 from gns import evaluate
 
+import matplotlib.pyplot as plt
+
+
 # Meta parameters
 flags.DEFINE_enum(
     'mode', 'train', ['train', 'valid', 'rollout'], help=(
@@ -31,8 +35,8 @@ flags.DEFINE_string('output_path', 'rollouts/', help='The path for saving output
 
 # Model parameters
 flags.DEFINE_float('connection_radius', 0.03, help='connectivity radius for graph.')
-flags.DEFINE_integer('layers', 10, help='Number of GNN layers.')
-flags.DEFINE_integer('hidden_dim', 32, help='Number of neurons in hidden layers.')
+flags.DEFINE_integer('layers', 5, help='Number of GNN layers.')
+flags.DEFINE_integer('hidden_dim', 64, help='Number of neurons in hidden layers.')
 flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 
 # Training parameters
@@ -62,9 +66,9 @@ FLAGS = flags.FLAGS
 
 Stats = collections.namedtuple('Stats', ['mean', 'std'])
 
-INPUT_SEQUENCE_LENGTH = 3  # So we can calculate the last 5 velocities.
+INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 2 velocities.
 NUM_PARTICLE_TYPES = 2
-KINEMATIC_PARTICLE_ID = 10
+KINEMATIC_PARTICLE_ID = -1
 
 
 def predict(
@@ -106,7 +110,8 @@ def predict(
             positions = data_traj['positions'].to(device)
             particle_type = data_traj['particle_type'].to(device)
             strains = data_traj['strains'].to(device)
-                            
+            meta_feature = data_traj['meta_feature'].to(device)
+            
             # Predict example rollout
             example_output = evaluate.rollout(simulator,
                                               positions,
@@ -115,6 +120,7 @@ def predict(
                                               strains,
                                               nsteps,
                                               FLAGS.dim,
+                                              meta_feature,
                                               device)
 
             example_output['metadata'] = metadata
@@ -238,6 +244,8 @@ def train(
                 n_particles_per_example = data_sample['input']['n_particles_per_example'].to(device)
                 next_position = data_sample['output']['next_position'].to(device)
                 next_strain = data_sample['output']['next_strain'].to(device)
+                meta_feature = data_sample['meta']['meta_feature'].to(device)
+                time_idx = data_sample['meta']['time_idx']
                 
                 # TODO (jpv): Move noise addition to data_loader
                 # Sample the noise to add to the inputs to the model during training.
@@ -252,46 +260,65 @@ def train(
                     position_sequence_noise=sampled_noise,
                     position_sequence=position,
                     nparticles_per_example=n_particles_per_example,
-                    particle_types=particle_type
+                    particle_types=particle_type,
+                    meta_feature=meta_feature
                 )
 
-                # Calculate the loss and mask out loss on kinematic particles
-                loss_pos = (pred_acc - target_acc) ** 2
-                loss_xy = loss_pos.mean(axis=0)  # for log purpose
-
-                # if 1d, compute loss on x-axis only
-                if FLAGS.dim == 1:
-                    loss_pos = loss_pos[:, 0]
-                else:
-                    loss_pos = loss_pos.sum(dim=-1)
-
-                # Calculate loss
-                loss_strain = (pred_strain - next_strain) ** 2
-                if FLAGS.dim == 1: loss_strain *= 0.   # Ignore strain for 1d
-                loss = loss_pos + loss_strain
+                ####### Calculate squared error
+                squared_error_acc = (pred_acc - target_acc) ** 2                  # (nparticles, 3)
+                squared_error_strain = (pred_strain - next_strain) ** 2           # (nparticles,)
+                mse_per_axis = squared_error_acc.mean(axis=0)  # for log purpose  # (3,)
+                
+                print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max{:.4f}'.format(target_acc.mean().item(), 
+                                                                                         target_acc.std().item(),
+                                                                                         target_acc.min().item(),
+                                                                                         target_acc.max().item())
+                     )
+                print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max{:.4f}'.format(pred_acc.mean().item(), 
+                                                                                         pred_acc.std().item(),
+                                                                                         pred_acc.min().item(),
+                                                                                         pred_acc.max().item())
+                     )
+                if step % 10 == 0:
+                    np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
+                    np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
+                # print('target strain', next_strain.mean().item(), next_strain.std().item())
+                # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
+                
+                # Mask out kinematic particle (if any)
+                loss = squared_error_acc.sum(dim=-1) + squared_error_strain       # (nparticles,)
                 num_non_kinematic = non_kinematic_mask.sum()
                 loss = torch.where(non_kinematic_mask.bool(), loss, torch.zeros_like(loss))
-                loss = loss.sum() / num_non_kinematic
+                loss = loss.sum() / num_non_kinematic                             # scala
 
                 # Computes the gradient of loss
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-
+                
                 # Update learning rate
                 lr_new = FLAGS.lr_init * (FLAGS.lr_decay ** (step / FLAGS.lr_decay_steps)) + 1e-6
                 for param in optimizer.param_groups:
                     param['lr'] = lr_new
                 
                 # Print training info
-                print('Training step: {}/{}. Loss: {}.'.format(step, FLAGS.ntraining_steps, loss))
+                print("==Training step: {}/{}. Timestep: {:02}== "
+                      "Total mse: {:8.6f},  Accleration mse: {:8.6f},  "
+                      "Strain mse: {:8.6f}".format(
+                          step, 
+                          FLAGS.ntraining_steps, 
+                          time_idx.item(),
+                          loss.item(),
+                          squared_error_acc.mean().item(),
+                          squared_error_strain.mean().item(),
+                      ))
                 
                 # WandB logging
-                log["train/loss"] = loss
-                log["train/loss-x"] = loss_xy[0]
-                log["train/loss-y"] = loss_xy[1]
-                log["train/loss-z"] = loss_xy[2]
-                log["train/loss-strain"] = loss_strain.mean()
+                log["train/mse-total"] = loss
+                log["train/mse-strain"] = squared_error_strain.mean()
+                log["train/mse-x"] = mse_per_axis[0]
+                log["train/mse-y"] = mse_per_axis[1]
+                log["train/mse-z"] = mse_per_axis[2]
                 log["lr"] = lr_new
 
                 ### =================================== Validation rollout ============================================
@@ -314,7 +341,8 @@ def train(
                             positions = data_traj['positions'].to(device)
                             particle_type = data_traj['particle_type'].to(device)
                             strains = data_traj['strains'].to(device)
-                            
+                            meta_feature = data_traj['meta_feature'].to(device)
+
                             # Predict example rollout
                             example_output = evaluate.rollout(simulator,
                                                               positions,
@@ -323,21 +351,24 @@ def train(
                                                               strains,
                                                               nsteps,
                                                               FLAGS.dim,
+                                                              meta_feature,
                                                               device)
                             
                             example_output['metadata'] = metadata
 
                             # RMSE loss with shape (time,)
-                            loss_total = example_output['rmse_position'][-1] + example_output['rmse_strain'][-1]
+                            loss_total = example_output['rmse_position'][-1] \
+                                       + example_output['rmse_strain'][-1]
                             loss_position = example_output['rmse_position'][-1]
                             loss_strain = example_output['rmse_strain'][-1]
-                            loss_oneStep = example_output['rmse_position'][0] + example_output['rmse_strain'][0]  
+                            loss_oneStep = example_output['rmse_position'][0] ** 2 \
+                                         + example_output['rmse_strain'][0] ** 2
                             
                             print(f'''Predicting example {example_i}-
                                   {example_output['metadata']['file_valid'][example_i]} 
-                                  loss_toal: {loss_total}, 
-                                  loss_position: {loss_position}, 
-                                  loss_strain: {loss_strain}''')
+                                  rmse_toal: {loss_total}, 
+                                  rmse_position: {loss_position}, 
+                                  rmse_strain: {loss_strain}''')
                             print(f"Prediction example {example_i} takes {example_output['run_time']}")
                             eval_loss_total.append(loss_total)
                             eval_loss_position.append(loss_position)
@@ -345,22 +376,27 @@ def train(
                             eval_loss_oneStep.append(loss_oneStep)
                         
                         eval_loss_mean = sum(eval_loss_total) / len(eval_loss_total)
-                        print(f"Mean loss on valid-set rollout prediction: {eval_loss_mean}. Current lowest eval loss is {lowest_eval_loss}.")
+                        print(f"Mean loss on valid-set rollout prediction: {eval_loss_mean}."
+                              f"Current lowest eval loss is {lowest_eval_loss}.")
                         
                         # Save the current best model based on eval loss
                         if eval_loss_mean < lowest_eval_loss:
-                            print(f"===================Better model obtained. Saving...=============================")
+                            print(f"===================Better model obtained.=============================")
                             lowest_eval_loss = eval_loss_mean
-                            if step > 10000:
-                                simulator.save(model_path + FLAGS.run_name + '-model-' + str(step) + '.pt')
+                            if step > 0:
+                                print(f"===================Saving.=============================")
+                                save_dir = osp.join(model_path, FLAGS.run_name)
+                                if not os.path.exists(save_dir):
+                                    os.makedirs(save_dir)
+                                simulator.save(osp.join(save_dir, f'model-{step:06}.pt'))
                                 train_state = dict(optimizer_state=optimizer.state_dict(), global_train_state={"step": step})
-                                torch.save(train_state, f"{model_path}{FLAGS.run_name}-train_state-{step}.pt")
+                                #torch.save(train_state, osp.join(save_dir, f'train_state-{step:06}.pt'))
 
                         # log
-                        log["val/loss"] = sum(eval_loss_total) / len(eval_loss_total)
-                        log["val/loss-position"] = sum(eval_loss_position) / len(eval_loss_position)
-                        log["val/loss-strain"] = sum(eval_loss_strain) / len(eval_loss_strain)
-                        log["val/rmse-oneStep"] = sum(eval_loss_oneStep) / len(eval_loss_oneStep)
+                        log["val/rmse-total"] = sum(eval_loss_total) / len(eval_loss_total)
+                        log["val/rmse-position"] = sum(eval_loss_position) / len(eval_loss_position)
+                        log["val/rmse-strain"] = sum(eval_loss_strain) / len(eval_loss_strain)
+                        log["val/mse-oneStep"] = sum(eval_loss_oneStep) / len(eval_loss_oneStep)
                     # =========================================================
 
                 # Complete training
@@ -376,9 +412,12 @@ def train(
     except KeyboardInterrupt:
         pass
 
-    simulator.save(model_path + FLAGS.run_name + '-model-' + str(step) + '.pt')
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)                                           
+    save_dir = osp.join(model_path, FLAGS.run_name)
+    simulator.save(osp.join(save_dir, f'model-{step:06}.pt'))
     train_state = dict(optimizer_state=optimizer.state_dict(), global_train_state={"step": step})
-    torch.save(train_state, f"{model_path}{FLAGS.run_name}-train_state-{step}.pt")
+    torch.save(train_state, osp.join(save_dir, f'train_state-{step:06}.pt'))
 
 
 def _get_simulator(
@@ -413,7 +452,7 @@ def _get_simulator(
     
     simulator = learned_simulator.LearnedSimulator(
         particle_dimensions=FLAGS.dim,  # xyz
-        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 9,  # timesteps * 3 (dim) + 9 (particle type embedding) + 6 boundary distance 
+        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 9 + 5,  # timesteps * 3 (dim) + 9 (particle type embedding) + 5 meta features
         nedge_in=FLAGS.dim + 1,    # input edge features, relative displacement in all dims + distance between two nodes
         latent_dim=FLAGS.hidden_dim,
         nmessage_passing_steps=FLAGS.layers,

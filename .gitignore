@@ -17,6 +17,7 @@ models/
 *.swp
 scratch
 log
+debug/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

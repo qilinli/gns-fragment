@@ -108,7 +108,8 @@ class LearnedSimulator(nn.Module):
           self,
           position_sequence: torch.tensor,
           nparticles_per_example: torch.tensor,
-          particle_types: torch.tensor):
+          particle_types: torch.tensor,
+          meta_feature: torch.tensor):
     """Extracts important features from the position sequence. Returns a tuple
     of node_features (nparticles, 30), edge_index (nparticles, nparticles), and
     edge_features (nparticles, 3).
@@ -143,10 +144,17 @@ class LearnedSimulator(nn.Module):
         velocity_sequence - velocity_stats['mean']) / velocity_stats['std']
     flat_velocity_sequence = normalized_velocity_sequence.view(
         nparticles, -1)
+    
     # There are 5 previous steps, with dim 2
     # node_features shape (nparticles, 5 * 2 = 10)
+    
+    # Meta feature x,y,z,l,r,m,s
+    col_to_keep = [0,1,2,5,6]
+    meta_feature = meta_feature[col_to_keep]
+    meta_feature = torch.tile(meta_feature, (flat_velocity_sequence.shape[0], 1))
+    meta_feature[particle_types==1, -1] = 10 
     node_features.append(flat_velocity_sequence)
-
+    node_features.append(meta_feature)
     # Normalized clipped distances to lower and upper boundaries.
     # boundaries are an array of shape [num_dimensions, 2], where the second
     # axis, provides the lower/upper boundaries.
@@ -167,9 +175,8 @@ class LearnedSimulator(nn.Module):
     
     # Particle type
     if self._nparticle_types > 1:
-      particle_type_embeddings = self._particle_type_embedding(
-          particle_types)
-      node_features.append(particle_type_embeddings)
+        particle_type_embeddings = self._particle_type_embedding(particle_types)
+        node_features.append(particle_type_embeddings)
     # Final node_features shape (nparticles, 30) for 2D
     # 30 = 10 (5 velocity sequences*dim) + 4 boundaries + 16 particle embedding
 
@@ -237,7 +244,8 @@ class LearnedSimulator(nn.Module):
           self,
           current_positions: torch.tensor,
           nparticles_per_example: torch.tensor,
-          particle_types: torch.tensor) -> torch.tensor:
+          particle_types: torch.tensor,
+          meta_feature: torch.tensor) -> torch.tensor:
     """Predict position based on acceleration.
 
     Args:
@@ -250,7 +258,7 @@ class LearnedSimulator(nn.Module):
       next_positions (torch.tensor): Next position of particles.
     """
     node_features, edge_index, edge_features = self._encoder_preprocessor(
-        current_positions, nparticles_per_example, particle_types)
+        current_positions, nparticles_per_example, particle_types, meta_feature)
     pred = self._encode_process_decode(
         node_features, edge_index, edge_features)
     predicted_normalized_acceleration = pred[:, :self._particle_dimensions] # qilin, the first 2 or 3 dims are accelrations
@@ -266,7 +274,8 @@ class LearnedSimulator(nn.Module):
           position_sequence_noise: torch.tensor,
           position_sequence: torch.tensor,
           nparticles_per_example: torch.tensor,
-          particle_types: torch.tensor):
+          particle_types: torch.tensor,
+          meta_feature: torch.tensor):
     """Produces normalized and predicted acceleration targets.
 
     Args:
@@ -291,7 +300,7 @@ class LearnedSimulator(nn.Module):
 
     # Perform the forward pass with the noisy position sequence.
     node_features, edge_index, edge_features = self._encoder_preprocessor(
-        noisy_position_sequence, nparticles_per_example, particle_types)
+        noisy_position_sequence, nparticles_per_example, particle_types, meta_feature)
     pred = self._encode_process_decode(
         node_features, edge_index, edge_features)
     predicted_normalized_acceleration = pred[:, :self._particle_dimensions] # qilin, the first 2 or 3 dims are accelrations
