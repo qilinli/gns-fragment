@@ -269,6 +269,7 @@ def train(
                 squared_error_strain = (pred_strain - next_strain) ** 2           # (nparticles,)
                 mse_per_axis = squared_error_acc.mean(axis=0)  # for log purpose  # (3,)
                 
+                ########## Debug
                 print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max{:.4f}'.format(target_acc.mean().item(), 
                                                                                          target_acc.std().item(),
                                                                                          target_acc.min().item(),
@@ -284,6 +285,8 @@ def train(
                     np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
                 # print('target strain', next_strain.mean().item(), next_strain.std().item())
                 # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
+                ###############################
+                
                 
                 # Mask out kinematic particle (if any)
                 loss = squared_error_acc.sum(dim=-1) + squared_error_strain       # (nparticles,)
@@ -309,7 +312,7 @@ def train(
                           FLAGS.ntraining_steps, 
                           time_idx.item(),
                           loss.item(),
-                          squared_error_acc.mean().item(),
+                          squared_error_acc.sum(dim=-1).mean().item(),
                           squared_error_strain.mean().item(),
                       ))
                 

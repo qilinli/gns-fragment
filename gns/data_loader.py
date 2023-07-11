@@ -9,7 +9,17 @@ class SamplesDataset(torch.utils.data.Dataset):
         # data is loaded as dict of tuples
         # of the form (positions, particle_type)
         # convert to list of tuples
-        self._data = [item for _, item in np.load(path, allow_pickle=True).items()]
+        # self._data = [item for _, item in np.load(path, allow_pickle=True).items()]
+        
+        data = np.load(path)
+        data_list = []
+        current_list = []
+        for array in data.values():
+            current_list.append(array)
+            if len(current_list) == 4:
+                data_list.append(current_list)
+                current_list = []
+        self._data = data_list       
 
         # length of each trajectory in the dataset
         # excluding the input_length_sequence
@@ -108,7 +118,17 @@ class TrajectoriesDataset(torch.utils.data.Dataset):
         # of the form (positions, particle_type)
         # convert to list of tuples
         # TODO (jpv): allow_pickle=True is potential security risk. See docs.
-        self._data = [item for _, item in np.load(path, allow_pickle=True).items()]
+        # self._data = [item for _, item in np.load(path, allow_pickle=True).items()]
+        data = np.load(path)
+        data_list = []
+        current_list = []
+        for array in data.values():
+            current_list.append(array)
+            if len(current_list) == 4:
+                data_list.append(current_list)
+                current_list = []
+        self._data = data_list
+        
         self._dimension = self._data[0][0].shape[-1]
         self._length = len(self._data)
 

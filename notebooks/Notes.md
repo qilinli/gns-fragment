@@ -13,15 +13,16 @@ CUDA_VISIBLE_DEVICES=5 python -m gns.train -mode=rollout --data_path=./data/Conc
 python -m gns.render_rollout_3d --rollout_path=rollouts/Fragment/rollout_0.pkl --output_path=rollouts/Fragment/rollout_0.jif
 
 
+# Noise scale
+Noise scale should be propotional to the velocity scale
+- 2D-C: vel std (3.1e-5, 4.7e-5) ==> noise std (6.7e-5, 6.7e-5)
+- 2D-I: vel std (4.7e-5, 8.6e-5) ==> noise std (5e-5, 5e-5)
+- 2D-T:  vel std (5.6e-3, 3.4e-3) ==> noise std (3e-4, 3e-4)
+- 3D-Fragment: vel std (0.1, 0.1, 0.8) ==> noise std (?, ?, ?)
+
 # Notes
-- If net config changed before evaluation, load weights may fail
-- If subtle config changed, evaluation may have low results
-- Train loss (acc) and val loss (pos) are not comparable currently
 - wandb step increase by default everytime wandb.log() is called
 - For quasi-static simulation, many particles have no acceleartion in many timesteps. Hence, the sampled training steps might have many zero ground truth or not, resulting in
     a large difference between training iterations, as shown by the training loss. This might be the reason that the training loss stucks quickly at some point
 - Adding noise significantly decreases the training loss but the GNN is probably fitting the Gaussian noise. This is evidenced by the relative constant rollout (all particles move
-    the same as the learning is on noise)
-- pytorch geometric caps the knn in radius_graph to be <=32
-- The original domain is x (-165, 165) and y (-10, 85). Normalise it to (0,1) and (0,1) will change the w/h ratio. 
-- Be careful with the simulation domain, the Bullet in impact loading has made y too large unnessarily
+    the same as the learning is on noise) 
