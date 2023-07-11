@@ -12,7 +12,8 @@ from gns import data_loader
 
 INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 5 velocities.
 NUM_PARTICLE_TYPES = 2     # 0 beam, 1 rebar
-EROSIONAL_PARTICLE_ID = 10  # so broken particle will not contribute to loss
+REBAR_PARTICLE_ID = 1
+KINEMATIC_PARTICLE_ID = -1  
 
 
 def rollout_rmse(pred, gt):
@@ -67,7 +68,7 @@ def rollout(
     pred_positions = []
     pred_strains = []
     
-    erosinal_mask = (particle_types == EROSIONAL_PARTICLE_ID).clone().detach().to(device)
+    erosinal_mask = (particle_types == KINEMATIC_PARTICLE_ID).clone().detach().to(device)
     erosinal_mask = erosinal_mask.bool()[:, None].expand(-1, particle_dim)
     
     start_time = time.time()

@@ -67,7 +67,8 @@ FLAGS = flags.FLAGS
 Stats = collections.namedtuple('Stats', ['mean', 'std'])
 
 INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 2 velocities.
-NUM_PARTICLE_TYPES = 2
+NUM_PARTICLE_TYPES = 2     # concrete 0, rebar 1
+REBAR_PARTICLE_ID = 1
 KINEMATIC_PARTICLE_ID = -1
 
 
@@ -252,6 +253,7 @@ def train(
                 sampled_noise = noise_utils.get_random_walk_noise_for_position_sequence(position,
                                                                                         noise_std_last_step=FLAGS.noise_std).to(device)
                 non_kinematic_mask = (particle_type != KINEMATIC_PARTICLE_ID).clone().detach().to(device)
+                non_rebar_mask = (particle_type != REBAR_PARTICLE_ID).clone().detach().to(device)  
                 sampled_noise *= non_kinematic_mask.view(-1, 1, 1)
 
                 # Get the predictions and target accelerations.
@@ -263,36 +265,45 @@ def train(
                     particle_types=particle_type,
                     meta_feature=meta_feature
                 )
-
-                ####### Calculate squared error
-                squared_error_acc = (pred_acc - target_acc) ** 2                  # (nparticles, 3)
-                squared_error_strain = (pred_strain - next_strain) ** 2           # (nparticles,)
-                mse_per_axis = squared_error_acc.mean(axis=0)  # for log purpose  # (3,)
                 
                 ########## Debug
-                print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max{:.4f}'.format(target_acc.mean().item(), 
-                                                                                         target_acc.std().item(),
-                                                                                         target_acc.min().item(),
-                                                                                         target_acc.max().item())
-                     )
-                print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max{:.4f}'.format(pred_acc.mean().item(), 
-                                                                                         pred_acc.std().item(),
-                                                                                         pred_acc.min().item(),
-                                                                                         pred_acc.max().item())
-                     )
-                if step % 10 == 0:
-                    np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
-                    np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
+                # print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
+                #                                                                          target_acc.std().item(),
+                #                                                                          target_acc.min().item(),
+                #                                                                          target_acc.max().item())
+                #      )
+                # print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
+                #                                                                          pred_acc.std().item(),
+                #                                                                          pred_acc.min().item(),
+                #                                                                          pred_acc.max().item())
+                #      )
+                # if step % 10 == 0:
+                #     np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
+                #     np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
                 # print('target strain', next_strain.mean().item(), next_strain.std().item())
                 # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
                 ###############################
                 
+                ####### Calculate squared error
+                # Compute acc loss only for non-kinematic particles
+                acc_mask = non_kinematic_mask[:, None].expand(-1, target_acc.shape[-1])                                                # (nparticles,)
+                squared_error_acc = (pred_acc - target_acc) ** 2                             # (nparticles, 3)
+                squared_error_acc = torch.where(acc_mask.bool(),        
+                                                squared_error_acc, 
+                                                torch.zeros_like(squared_error_acc))         # (nparticles,3)
+                mse_per_axis = squared_error_acc.mean(axis=0)                                # (3,), not proper mse, for log purpose only
+                mse_acc = squared_error_acc.sum() / non_kinematic_mask.sum()                           # scalar mse, x+y+z
                 
-                # Mask out kinematic particle (if any)
-                loss = squared_error_acc.sum(dim=-1) + squared_error_strain       # (nparticles,)
-                num_non_kinematic = non_kinematic_mask.sum()
-                loss = torch.where(non_kinematic_mask.bool(), loss, torch.zeros_like(loss))
-                loss = loss.sum() / num_non_kinematic                             # scala
+                # Compute strain loss only for non-kinamtic and non-rebar partciels
+                strain_mask = non_kinematic_mask & non_rebar_mask                            # (nparticles,)
+                squared_error_strain = (pred_strain - next_strain) ** 2                      # (nparticles,)
+                squared_error_strain = torch.where(strain_mask.bool(),        
+                                                   squared_error_strain, 
+                                                   torch.zeros_like(squared_error_strain))   # (nparticles,)
+                mse_strain = squared_error_strain.sum() / strain_mask.sum()                  # scalar mse
+                         
+                # total loss
+                loss = mse_acc + mse_strain
 
                 # Computes the gradient of loss
                 optimizer.zero_grad()
@@ -312,13 +323,14 @@ def train(
                           FLAGS.ntraining_steps, 
                           time_idx.item(),
                           loss.item(),
-                          squared_error_acc.sum(dim=-1).mean().item(),
-                          squared_error_strain.mean().item(),
+                          mse_acc.item(),
+                          mse_strain.mean().item(),
                       ))
                 
                 # WandB logging
                 log["train/mse-total"] = loss
-                log["train/mse-strain"] = squared_error_strain.mean()
+                log["train/mse-strain"] = mse_strain
+                log["train/mse-acc"] = mse_acc
                 log["train/mse-x"] = mse_per_axis[0]
                 log["train/mse-y"] = mse_per_axis[1]
                 log["train/mse-z"] = mse_per_axis[2]

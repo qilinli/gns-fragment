@@ -127,6 +127,7 @@ class TrajectoriesDataset(torch.utils.data.Dataset):
             if len(current_list) == 4:
                 data_list.append(current_list)
                 current_list = []
+        del data
         self._data = data_list
         
         self._dimension = self._data[0][0].shape[-1]
