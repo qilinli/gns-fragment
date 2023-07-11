@@ -70,6 +70,7 @@ def rollout(
     
     erosinal_mask = (particle_types == KINEMATIC_PARTICLE_ID).clone().detach().to(device)
     erosinal_mask = erosinal_mask.bool()[:, None].expand(-1, particle_dim)
+    rebar_mask = (particle_types == REBAR_PARTICLE_ID).clone().detach().to(device)
     
     start_time = time.time()
     for step in range(nsteps):
@@ -88,6 +89,9 @@ def rollout(
             erosinal_mask, next_position_ground_truth, next_position)
         pred_strain = torch.where(
             erosinal_mask[:, 0], next_strain_ground_truth, pred_strain)
+        pred_strain = torch.where(
+            rebar_mask, next_strain_ground_truth, pred_strain)
+        
         pred_positions.append(next_position)
         pred_strains.append(pred_strain)
 
