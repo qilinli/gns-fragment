@@ -39,12 +39,13 @@ from gns import learned_simulator
 
 
 
-def get_random_walk_noise_for_position_sequence(position_sequence, noise_std_last_step):
+def get_random_walk_noise_for_position_sequence(position_sequence, down_scale_factor=10):
     velocity_sequence = learned_simulator.time_diff(position_sequence)
     num_velocities = velocity_sequence.shape[1]
 
-    # Define noise scales for each dimension
-    noise_std_last_step_xyz = [0.01, 0.01, 0.08]  # Adjust these values according to your desired noise scales
+    # Define noise scales (std) for each dimension differently
+    # defined by scalling down data velocity std by a factor, e.g., 10
+    noise_std_last_step_xyz = [x / down_scale_factor for x in [0.08, 0.08, 0.54]] 
 
     num_velocities = velocity_sequence.shape[1]
     velocity_sequence_noise = torch.randn(

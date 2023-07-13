@@ -11,9 +11,9 @@ from gns import reading_utils
 from gns import data_loader
 
 INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 5 velocities.
-NUM_PARTICLE_TYPES = 2     # 0 beam, 1 rebar
+NUM_PARTICLE_TYPES = 3     # 0 beam, 1 rebar, 2 boundary
 REBAR_PARTICLE_ID = 1
-KINEMATIC_PARTICLE_ID = -1  
+BOUNDARY_PARTICLE_ID = 2  
 
 
 def rollout_rmse(pred, gt):
@@ -68,8 +68,8 @@ def rollout(
     pred_positions = []
     pred_strains = []
     
-    erosinal_mask = (particle_types == KINEMATIC_PARTICLE_ID).clone().detach().to(device)
-    erosinal_mask = erosinal_mask.bool()[:, None].expand(-1, particle_dim)
+    boundary_mask = (particle_types == BOUNDARY_PARTICLE_ID).clone().detach().to(device)
+    boundary_mask = boundary_mask.bool()[:, None].expand(-1, particle_dim)
     rebar_mask = (particle_types == REBAR_PARTICLE_ID).clone().detach().to(device)
     
     start_time = time.time()
@@ -86,9 +86,9 @@ def rollout(
         next_position_ground_truth = ground_truth_positions[:, step]
         next_strain_ground_truth = ground_truth_strains[step, :]
         next_position = torch.where(
-            erosinal_mask, next_position_ground_truth, next_position)
+            boundary_mask, next_position_ground_truth, next_position)
         pred_strain = torch.where(
-            erosinal_mask[:, 0], next_strain_ground_truth, pred_strain)
+            boundary_mask[:, 0], next_strain_ground_truth, pred_strain)
         pred_strain = torch.where(
             rebar_mask, next_strain_ground_truth, pred_strain)
         

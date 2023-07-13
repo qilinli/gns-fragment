@@ -41,7 +41,7 @@ flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 
 # Training parameters
 flags.DEFINE_integer('batch_size', 2, help='The batch size.')
-flags.DEFINE_float('noise_std', 6.7e-4, help='The std deviation of the noise.')
+flags.DEFINE_list('noise_std', [0.08, 0.08, 0.54], help='The std deviation of the noise.')
 flags.DEFINE_integer('ntraining_steps', int(1E6), help='Number of training steps.')
 flags.DEFINE_integer('nsave_steps', int(5000), help='Number of steps at which to save the model.')
 
@@ -67,9 +67,9 @@ FLAGS = flags.FLAGS
 Stats = collections.namedtuple('Stats', ['mean', 'std'])
 
 INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 2 velocities.
-NUM_PARTICLE_TYPES = 2     # concrete 0, rebar 1
+NUM_PARTICLE_TYPES = 3     # concrete 0, rebar 1
 REBAR_PARTICLE_ID = 1
-KINEMATIC_PARTICLE_ID = -1
+BOUNDARY_PARTICLE_ID = 2
 
 
 def predict(
@@ -133,7 +133,7 @@ def predict(
             loss_oneStep = example_output['rmse_position'][0] + example_output['rmse_strain'][0]  
 
             print(f'''Predicting example {example_i}-
-                  {example_output['metadata']['file_valid'][example_i]} 
+                  {example_output['metadata'][f'file_{split}'][example_i]} 
                   loss_toal: {loss_total}, 
                   loss_position: {loss_position}, 
                   loss_strain: {loss_strain}''')
@@ -238,8 +238,7 @@ def train(
         while not_reached_nsteps:
             for data_sample in data_samples:
                 log = {}  # wandb logging
-                # position are of size (nparticles*batch_size, INPUT_SEQUENCE_LENGTH, dim)
-                
+                # position are of size (nparticles*batch_size, INPUT_SEQUENCE_LENGTH, dim)             
                 position = data_sample['input']['positions'].to(device)
                 particle_type = data_sample['input']['particle_type'].to(device)
                 n_particles_per_example = data_sample['input']['n_particles_per_example'].to(device)
@@ -247,14 +246,14 @@ def train(
                 next_strain = data_sample['output']['next_strain'].to(device)
                 meta_feature = data_sample['meta']['meta_feature'].to(device)
                 time_idx = data_sample['meta']['time_idx']
-                
+            
                 # TODO (jpv): Move noise addition to data_loader
                 # Sample the noise to add to the inputs to the model during training.
                 sampled_noise = noise_utils.get_random_walk_noise_for_position_sequence(position,
-                                                                                        noise_std_last_step=FLAGS.noise_std).to(device)
-                non_kinematic_mask = (particle_type != KINEMATIC_PARTICLE_ID).clone().detach().to(device)
+                                                                                        FLAGS.noise_std).to(device)
+                non_boundary_mask = (particle_type != BOUNDARY_PARTICLE_ID).clone().detach().to(device)
                 non_rebar_mask = (particle_type != REBAR_PARTICLE_ID).clone().detach().to(device)  
-                sampled_noise *= non_kinematic_mask.view(-1, 1, 1)
+                sampled_noise *= non_boundary_mask.view(-1, 1, 1)
 
                 # Get the predictions and target accelerations.
                 pred_acc, target_acc, pred_strain = simulator.predict_accelerations(
@@ -267,41 +266,41 @@ def train(
                 )
                 
                 ########## Debug
-                # print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
-                #                                                                          target_acc.std().item(),
-                #                                                                          target_acc.min().item(),
-                #                                                                          target_acc.max().item())
-                #      )
-                # print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
-                #                                                                          pred_acc.std().item(),
-                #                                                                          pred_acc.min().item(),
-                #                                                                          pred_acc.max().item())
-                #      )
-                # if step % 10 == 0:
-                #     np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
-                #     np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
-                # print('target strain', next_strain.mean().item(), next_strain.std().item())
-                # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
-                ###############################
+                print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
+                                                                                         target_acc.std().item(),
+                                                                                         target_acc.min().item(),
+                                                                                         target_acc.max().item())
+                     )
+                print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
+                                                                                         pred_acc.std().item(),
+                                                                                         pred_acc.min().item(),
+                                                                                         pred_acc.max().item())
+                     )
+                if step % 10 == 0:
+                    np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
+                    np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
+                print('target strain', next_strain.mean().item(), next_strain.std().item())
+                print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
+                ##############################
                 
                 ####### Calculate squared error
-                # Compute acc loss only for non-kinematic particles
-                acc_mask = non_kinematic_mask[:, None].expand(-1, target_acc.shape[-1])                                                # (nparticles,)
+                # Compute acc loss only for non-boundary particles
+                acc_mask = non_boundary_mask[:, None].expand(-1, target_acc.shape[-1])      # (nparticles, 3)
                 squared_error_acc = (pred_acc - target_acc) ** 2                             # (nparticles, 3)
                 squared_error_acc = torch.where(acc_mask.bool(),        
                                                 squared_error_acc, 
                                                 torch.zeros_like(squared_error_acc))         # (nparticles,3)
                 mse_per_axis = squared_error_acc.mean(axis=0)                                # (3,), not proper mse, for log purpose only
-                mse_acc = squared_error_acc.sum() / non_kinematic_mask.sum()                           # scalar mse, x+y+z
-                
-                # Compute strain loss only for non-kinamtic and non-rebar partciels
-                strain_mask = non_kinematic_mask & non_rebar_mask                            # (nparticles,)
+                mse_acc = squared_error_acc.sum() / non_boundary_mask.sum()                 # scalar mse, x+y+z
+
+                # Compute strain loss only for non-boundary and non-rebar partciels
+                strain_mask = non_boundary_mask & non_rebar_mask                            # (nparticles,)
                 squared_error_strain = (pred_strain - next_strain) ** 2                      # (nparticles,)
                 squared_error_strain = torch.where(strain_mask.bool(),        
                                                    squared_error_strain, 
                                                    torch.zeros_like(squared_error_strain))   # (nparticles,)
                 mse_strain = squared_error_strain.sum() / strain_mask.sum()                  # scalar mse
-                         
+       
                 # total loss
                 loss = mse_acc + mse_strain
 
@@ -419,17 +418,17 @@ def train(
                     not_reached_nsteps = False
                     break
 
-                if FLAGS.log:
+                if FLAGS.log:  
                     wandb.log(log, step=step)
                     
                 step += 1
 
     except KeyboardInterrupt:
         pass
-
+    
+    save_dir = osp.join(model_path, FLAGS.run_name)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)                                           
-    save_dir = osp.join(model_path, FLAGS.run_name)
     simulator.save(osp.join(save_dir, f'model-{step:06}.pt'))
     train_state = dict(optimizer_state=optimizer.state_dict(), global_train_state={"step": step})
     torch.save(train_state, osp.join(save_dir, f'train_state-{step:06}.pt'))
@@ -454,12 +453,12 @@ def _get_simulator(
         'acceleration': {
             'mean': torch.FloatTensor(metadata['acc_mean']).to(device),
             'std': torch.sqrt(torch.FloatTensor(metadata['acc_std']) ** 2 +
-                              acc_noise_std ** 2).to(device),
+                              acc_noise_std ** 2).to(device),                # add FLAGS.noise_std
         },
         'velocity': {
             'mean': torch.FloatTensor(metadata['vel_mean']).to(device),
             'std': torch.sqrt(torch.FloatTensor(metadata['vel_std']) ** 2 +
-                              vel_noise_std ** 2).to(device),
+                              vel_noise_std ** 2).to(device),                # add FLAGS.noise_std
         },
     }
     
@@ -490,7 +489,7 @@ def main(_):
     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"device = {device}")
-
+    print("List", FLAGS.noise_std)
     # Read metadata
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)

@@ -229,7 +229,7 @@ class LearnedSimulator(nn.Module):
     acceleration = (
         normalized_acceleration * acceleration_stats['std']
     ) + acceleration_stats['mean']
-
+    print(f"acc shape {normalized_acceleration.shape}, stats shape {acceleration_stats['std'].shape}")
     # Use an Euler integrator to go from acceleration to position, assuming
     # a dt=1 corresponding to the size of the finite difference.
     most_recent_position = position_sequence[:, -1]
@@ -346,6 +346,7 @@ class LearnedSimulator(nn.Module):
     acceleration_stats = self._normalization_stats["acceleration"]
     normalized_acceleration = (
         acceleration - acceleration_stats['mean']) / acceleration_stats['std']
+    print(f"acc shape {normalized_acceleration.shape}, stats shape {acceleration_stats['std'].shape}")
     return normalized_acceleration
 
   def save(
