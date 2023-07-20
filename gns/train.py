@@ -41,7 +41,7 @@ flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 
 # Training parameters
 flags.DEFINE_integer('batch_size', 2, help='The batch size.')
-flags.DEFINE_list('noise_std', [0.08, 0.08, 0.54], help='The std deviation of the noise.')
+flags.DEFINE_float('noise_std', 6.7e-5, help='The std deviation of the noise.')
 flags.DEFINE_integer('ntraining_steps', int(1E6), help='Number of training steps.')
 flags.DEFINE_integer('nsave_steps', int(5000), help='Number of steps at which to save the model.')
 
@@ -66,7 +66,7 @@ FLAGS = flags.FLAGS
 
 Stats = collections.namedtuple('Stats', ['mean', 'std'])
 
-INPUT_SEQUENCE_LENGTH = 5  # So we can calculate the last 2 velocities.
+INPUT_SEQUENCE_LENGTH = 10  # So we can calculate the last 2 velocities.
 NUM_PARTICLE_TYPES = 3     # concrete 0, rebar 1
 REBAR_PARTICLE_ID = 1
 BOUNDARY_PARTICLE_ID = 2
@@ -246,7 +246,8 @@ def train(
                 next_strain = data_sample['output']['next_strain'].to(device)
                 meta_feature = data_sample['meta']['meta_feature'].to(device)
                 time_idx = data_sample['meta']['time_idx']
-            
+
+
                 # TODO (jpv): Move noise addition to data_loader
                 # Sample the noise to add to the inputs to the model during training.
                 sampled_noise = noise_utils.get_random_walk_noise_for_position_sequence(position,
@@ -266,22 +267,22 @@ def train(
                 )
                 
                 ########## Debug
-                print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
-                                                                                         target_acc.std().item(),
-                                                                                         target_acc.min().item(),
-                                                                                         target_acc.max().item())
-                     )
-                print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
-                                                                                         pred_acc.std().item(),
-                                                                                         pred_acc.min().item(),
-                                                                                         pred_acc.max().item())
-                     )
-                if step % 10 == 0:
-                    np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
-                    np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
-                print('target strain', next_strain.mean().item(), next_strain.std().item())
-                print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
-                ##############################
+                # print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
+                #                                                                          target_acc.std().item(),
+                #                                                                          target_acc.min().item(),
+                #                                                                          target_acc.max().item())
+                #      )
+                # print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
+                #                                                                          pred_acc.std().item(),
+                #                                                                          pred_acc.min().item(),
+                #                                                                          pred_acc.max().item())
+                #      )
+                # if step % 10 == 0:
+                #     np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
+                #     np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
+                # print('target strain', next_strain.mean().item(), next_strain.std().item())
+                # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
+                #############################
                 
                 ####### Calculate squared error
                 # Compute acc loss only for non-boundary particles
@@ -356,7 +357,7 @@ def train(
                             particle_type = data_traj['particle_type'].to(device)
                             strains = data_traj['strains'].to(device)
                             meta_feature = data_traj['meta_feature'].to(device)
-
+                            
                             # Predict example rollout
                             example_output = evaluate.rollout(simulator,
                                                               positions,
@@ -447,26 +448,36 @@ def _get_simulator(
       vel_noise_std: Velocity noise std deviation.
       device: PyTorch device 'cpu' or 'cuda'.
     """
-
+    acc_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
+    vel_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
+    pos_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
+    
+    
+    acc_mean = torch.FloatTensor(metadata['acc_mean']).to(device)
+    acc_std = torch.sqrt(torch.FloatTensor(metadata['acc_std']) ** 2 + acc_noise_std ** 2).to(device)
+    # acc_std = torch.FloatTensor(metadata['acc_std'])
+    # acc_std = torch.sqrt(acc_std ** 2 + (acc_std / FLAGS.noise_std) ** 2).to(device)
+    
+    vel_mean = torch.FloatTensor(metadata['vel_mean']).to(device)
+    vel_std = torch.sqrt(torch.FloatTensor(metadata['vel_std']) ** 2 + vel_noise_std ** 2).to(device)
+    # vel_std = torch.FloatTensor(metadata['vel_std'])
+    # vel_std = torch.sqrt(vel_std ** 2 + (vel_std / FLAGS.noise_std) ** 2).to(device)
+    
+    pos_mean = torch.FloatTensor(metadata['pos_mean']).to(device)
+    pos_std = torch.sqrt(torch.FloatTensor(metadata['pos_std']) ** 2 + pos_noise_std ** 2).to(device)
+    
     # Normalization stats
     normalization_stats = {
-        'acceleration': {
-            'mean': torch.FloatTensor(metadata['acc_mean']).to(device),
-            'std': torch.sqrt(torch.FloatTensor(metadata['acc_std']) ** 2 +
-                              acc_noise_std ** 2).to(device),                # add FLAGS.noise_std
-        },
-        'velocity': {
-            'mean': torch.FloatTensor(metadata['vel_mean']).to(device),
-            'std': torch.sqrt(torch.FloatTensor(metadata['vel_std']) ** 2 +
-                              vel_noise_std ** 2).to(device),                # add FLAGS.noise_std
-        },
+        'acceleration': {'mean': acc_mean, 'std': acc_std},
+        'velocity':    {'mean': vel_mean, 'std': vel_std},
+        'position':     {'mean': pos_mean, 'std': pos_std}
     }
     
     # num_boundary_fea = 4 if FLAGS.dim == '1d' else 4 #qilin
     
     simulator = learned_simulator.LearnedSimulator(
         particle_dimensions=FLAGS.dim,  # xyz
-        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 9 + 5,  # timesteps * 3 (dim) + 9 (particle type embedding) + 5 meta features
+        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 16 + 8,  # timesteps * 3 (dim) + 9 (particle type embedding) + 5 meta features
         nedge_in=FLAGS.dim + 1,    # input edge features, relative displacement in all dims + distance between two nodes
         latent_dim=FLAGS.hidden_dim,
         nmessage_passing_steps=FLAGS.layers,
@@ -476,7 +487,7 @@ def _get_simulator(
         boundaries=np.array(metadata['bounds']),
         normalization_stats=normalization_stats,
         nparticle_types=NUM_PARTICLE_TYPES,
-        particle_type_embedding_size=9,
+        particle_type_embedding_size=16,
         device=device)
 
     return simulator
@@ -489,7 +500,7 @@ def main(_):
     # Set device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"device = {device}")
-    print("List", FLAGS.noise_std)
+
     # Read metadata
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)

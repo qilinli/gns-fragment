@@ -122,7 +122,7 @@ class LearnedSimulator(nn.Module):
       particle_types: Particle types with shape (nparticles).
     """
     nparticles = position_sequence.shape[0]
-    most_recent_position = position_sequence[:, -1]  # (n_nodes, 2)
+    most_recent_position = position_sequence[:, -1]  # (nparticles, 3)
     velocity_sequence = time_diff(position_sequence)
 
     # Get connectivity of the graph with shape of (nparticles, 2)
@@ -130,9 +130,9 @@ class LearnedSimulator(nn.Module):
         most_recent_position, nparticles_per_example, self._connectivity_radius)
     
     # Debug graph connection
-    # print("==There are {}-{}-{}-{}-{} edges per node.".format(sum(receivers == 17120), sum(receivers == 51411),sum(receivers == 1820), sum(receivers==33000), sum(receivers==4000)))
+    # print("==There are {}-{}-{}-{}-{} edges per node.".format(sum(receivers == 17120), sum(receivers == 1500),sum(receivers == 1820), sum(receivers==2691), sum(receivers==100520)))
     # for i in range(len(receivers)):
-    #     if receivers[i] == 17120:
+    #     if receivers[i] == 1820:
     #         print(f"r==1712: {senders[i]} -> {receivers[i]}")
     # print(f"knn={sum(receivers == 17120)}")
             
@@ -142,19 +142,21 @@ class LearnedSimulator(nn.Module):
     velocity_stats = self._normalization_stats["velocity"]
     normalized_velocity_sequence = (
         velocity_sequence - velocity_stats['mean']) / velocity_stats['std']
-    flat_velocity_sequence = normalized_velocity_sequence.view(
-        nparticles, -1)
+    flat_velocity_sequence = normalized_velocity_sequence.view(nparticles, -1)
+    node_features.append(flat_velocity_sequence)
     
-    # There are 5 previous steps, with dim 2
-    # node_features shape (nparticles, 5 * 2 = 10)
+    # Normalised position of particles
+    position_stats = self._normalization_stats["position"]
+    norm_current_position = (most_recent_position - position_stats['mean']) / position_stats['std']
+    node_features.append(norm_current_position)
     
-    # Meta feature x,y,z,l,r,m,s
+    # Normalised meta feature TNTx(0),TNTy(1),TNTz(2),l(3),r(4),m(5),s(6),t(7)
     col_to_keep = [0,1,2,5,6]
     meta_feature = meta_feature[col_to_keep]
     meta_feature = torch.tile(meta_feature, (flat_velocity_sequence.shape[0], 1))
     meta_feature[particle_types==1, -1] = 10 
-    node_features.append(flat_velocity_sequence)
     node_features.append(meta_feature)
+    
     # Normalized clipped distances to lower and upper boundaries.
     # boundaries are an array of shape [num_dimensions, 2], where the second
     # axis, provides the lower/upper boundaries.
@@ -183,12 +185,6 @@ class LearnedSimulator(nn.Module):
     # Collect edge features.
     edge_features = []
 
-    # Relative displacement and distances normalized to radius
-    # with shape (nedges, 2)
-    # normalized_relative_displacements = (
-    #     torch.gather(most_recent_position, 0, senders) -
-    #     torch.gather(most_recent_position, 0, receivers)
-    # ) / self._connectivity_radius
     normalized_relative_displacements = (
         most_recent_position[senders, :] -
         most_recent_position[receivers, :]
@@ -229,7 +225,7 @@ class LearnedSimulator(nn.Module):
     acceleration = (
         normalized_acceleration * acceleration_stats['std']
     ) + acceleration_stats['mean']
-    print(f"acc shape {normalized_acceleration.shape}, stats shape {acceleration_stats['std'].shape}")
+
     # Use an Euler integrator to go from acceleration to position, assuming
     # a dt=1 corresponding to the size of the finite difference.
     most_recent_position = position_sequence[:, -1]
@@ -346,7 +342,7 @@ class LearnedSimulator(nn.Module):
     acceleration_stats = self._normalization_stats["acceleration"]
     normalized_acceleration = (
         acceleration - acceleration_stats['mean']) / acceleration_stats['std']
-    print(f"acc shape {normalized_acceleration.shape}, stats shape {acceleration_stats['std'].shape}")
+
     return normalized_acceleration
 
   def save(

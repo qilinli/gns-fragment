@@ -43,9 +43,10 @@ class Render():
             )
         strain = {}
         for strain_case in strain_cases:
-            strain[strain_case[0]] = np.concatenate(
-                [rollout_data["initial_strains"], rollout_data[strain_case[0]]], axis=0
-            )
+            # strain[strain_case[0]] = np.concatenate(
+            #     [rollout_data["initial_strains"], rollout_data[strain_case[0]]], axis=0
+            # )
+            strain[strain_case[0]] = rollout_data[strain_case[0]]
     
         # Trajectory information
         self.trajectory = trajectory
@@ -55,6 +56,8 @@ class Render():
         self.num_steps = trajectory[rollout_cases[0][0]].shape[0]
         self.boundaries = rollout_data["metadata"]["bounds"]
         self.mask = rollout_data['particle_types'] != -1
+        id = int(FLAGS.rollout_name.split('_')[-1])
+        self.case_name = rollout_data["metadata"]["file_test"][id]
         
     def color_map(self, datacase):
         """
@@ -135,7 +138,7 @@ class Render():
                 # rotate viewpoints angle little by little for each timestep
                 axes[j].view_init(elev=vertical_camera_angle, azim=i*viewpoint_rotation, roll=roll, vertical_axis='z')
                 axes[j].grid(True, which='both')
-                axes[j].set_title(f"{render_datacases[j]}, Step {i}")
+                axes[j].set_title(f"{render_datacases[j]}-{self.case_name}, Step {i}")
 
         # Creat animation
         ani = animation.FuncAnimation(

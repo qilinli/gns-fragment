@@ -45,8 +45,9 @@ def get_random_walk_noise_for_position_sequence(position_sequence, down_scale_fa
 
     # Define noise scales (std) for each dimension differently
     # defined by scalling down data velocity std by a factor, e.g., 10
-    noise_std_last_step_xyz = [x / down_scale_factor for x in [0.08, 0.08, 0.54]] 
-
+    # down_scale_factor=10
+    # noise_std_last_step_xyz = [x / down_scale_factor for x in [0.08, 0.08, 0.54]] 
+    noise_std_last_step_xyz = [0.0005, 0.0005, 0.01]
     num_velocities = velocity_sequence.shape[1]
     velocity_sequence_noise = torch.randn(
         list(velocity_sequence.shape)) * (1.0 / (num_velocities**0.5))
