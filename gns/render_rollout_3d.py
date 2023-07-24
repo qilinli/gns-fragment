@@ -159,7 +159,7 @@ def main(_):
     render.render_gif_animation(
         point_size=1,
         timestep_stride=FLAGS.step_stride,
-        vertical_camera_angle=30,
+        vertical_camera_angle=-90,
         viewpoint_rotation=0,
         roll=0
     )

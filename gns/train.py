@@ -450,7 +450,7 @@ def _get_simulator(
     """
     acc_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
     vel_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
-    pos_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
+    pos_noise_std = torch.FloatTensor([0.005, 0.005, 0.1])
     
     
     acc_mean = torch.FloatTensor(metadata['acc_mean']).to(device)
