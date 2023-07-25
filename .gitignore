@@ -3,6 +3,7 @@ wandb/
 
 # Data
 /data/
+*.pkl
 
 # Rollouts
 rollouts/
