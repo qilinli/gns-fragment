@@ -22,8 +22,7 @@ from gns import reading_utils
 from gns import data_loader
 from gns import evaluate
 
-import matplotlib.pyplot as plt
-
+from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
 
 # Meta parameters
 flags.DEFINE_enum(
@@ -214,6 +213,14 @@ def train(
       simulator: Get LearnedSimulator.
     """
     optimizer = torch.optim.Adam(simulator.parameters(), lr=FLAGS.lr_init)
+    scheduler = CosineAnnealingWarmupRestarts(optimizer,
+                                              first_cycle_steps=70000,
+                                              cycle_mult=0.3,
+                                              max_lr=0.001,
+                                              min_lr=0,
+                                              warmup_steps=1000,
+                                              gamma=0.1)
+    
     step = 0
     # If model_path does not exist create new directory and begin training.
     model_path = FLAGS.model_path
@@ -265,25 +272,7 @@ def train(
                     particle_types=particle_type,
                     meta_feature=meta_feature
                 )
-                
-                ########## Debug
-                # print('target acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(target_acc.mean().item(), 
-                #                                                                          target_acc.std().item(),
-                #                                                                          target_acc.min().item(),
-                #                                                                          target_acc.max().item())
-                #      )
-                # print('pred acc mean: {:.4f}, std: {:.4f}, min: {:.4f}, max: {:.4f}'.format(pred_acc.mean().item(), 
-                #                                                                          pred_acc.std().item(),
-                #                                                                          pred_acc.min().item(),
-                #                                                                          pred_acc.max().item())
-                #      )
-                # if step % 10 == 0:
-                #     np.save(f'debug/target_acc_{step:03}_{time_idx.item():03}', target_acc.detach().cpu().numpy())
-                #     np.save(f'debug/pred_acc_{step:03}_{time_idx.item():03}', pred_acc.detach().cpu().numpy())
-                # print('target strain', next_strain.mean().item(), next_strain.std().item())
-                # print('pred strain', pred_strain.mean().item(), pred_strain.std().item())
-                #############################
-                
+                    
                 ####### Calculate squared error
                 # Compute acc loss only for non-boundary particles
                 acc_mask = non_boundary_mask[:, None].expand(-1, target_acc.shape[-1])      # (nparticles, 3)
@@ -309,11 +298,12 @@ def train(
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+                scheduler.step()
                 
                 # Update learning rate
-                lr_new = FLAGS.lr_init * (FLAGS.lr_decay ** (step / FLAGS.lr_decay_steps)) + 1e-6
-                for param in optimizer.param_groups:
-                    param['lr'] = lr_new
+                # lr_new = FLAGS.lr_init * (FLAGS.lr_decay ** (step / FLAGS.lr_decay_steps)) + 1e-6
+                # for param in optimizer.param_groups:
+                #     param['lr'] = lr_new
                 
                 # Print training info
                 print("==Training step: {}/{}. Timestep: {:02}== "
@@ -334,7 +324,7 @@ def train(
                 log["train/mse-x"] = mse_per_axis[0]
                 log["train/mse-y"] = mse_per_axis[1]
                 log["train/mse-z"] = mse_per_axis[2]
-                log["lr"] = lr_new
+                log["lr"] = scheduler.get_lr()[0]
 
                 ### =================================== Validation rollout ============================================
                 if step != 0 and step % FLAGS.nsave_steps == 0:
@@ -398,7 +388,7 @@ def train(
                         if eval_loss_mean < lowest_eval_loss:
                             print(f"===================Better model obtained.=============================")
                             lowest_eval_loss = eval_loss_mean
-                            if step > 0:
+                            if step > 999:
                                 print(f"===================Saving.=============================")
                                 save_dir = osp.join(model_path, FLAGS.run_name)
                                 if not os.path.exists(save_dir):
@@ -450,7 +440,7 @@ def _get_simulator(
     """
     acc_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
     vel_noise_std = torch.FloatTensor([0.0005, 0.0005, 0.01])
-    pos_noise_std = torch.FloatTensor([0.005, 0.005, 0.1])
+    pos_noise_std = torch.FloatTensor([0.005, 0.005, 0.05])
     
     
     acc_mean = torch.FloatTensor(metadata['acc_mean']).to(device)
@@ -481,7 +471,7 @@ def _get_simulator(
         nedge_in=FLAGS.dim + 1,    # input edge features, relative displacement in all dims + distance between two nodes
         latent_dim=FLAGS.hidden_dim,
         nmessage_passing_steps=FLAGS.layers,
-        nmlp_layers=1,
+        nmlp_layers=2,
         mlp_hidden_dim=FLAGS.hidden_dim,
         connectivity_radius=FLAGS.connection_radius,
         boundaries=np.array(metadata['bounds']),

@@ -1,6 +1,6 @@
 # Cmd to run
 # Train
-CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/ --output_path=./rollouts/Fragment/ --batch_size=1 --noise_std=0.0005 --connection_radius=14 --layers=5 --hidden_dim=64 --lr_init=0.001 --ntraining_steps=100001 --lr_decay_steps=30000 --dim=3 --project_name=Fragment-3D-full --run_name=Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10 --nsave_steps=3000 --log=1
+CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/ --output_path=./rollouts/Fragment/ --batch_size=1 --noise_std=0.0005 --connection_radius=14 --layers=5 --hidden_dim=64 --lr_init=0.001 --ntraining_steps=100001 --lr_decay_steps=30000 --dim=3 --project_name=Fragment-3D-full --run_name=Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10_LRCosine --nsave_steps=3000 --log=1
 
 CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=./data/Concrete3D/ --model_path=./models/Concrete3D/ --output_path=./rollouts/Concrete3D/ --batch_size=1 --noise_std=0.001 --connection_radius=15 --layers=10 --lr_init=0.001 --ntraining_steps=300000 --lr_decay_steps=80000 --dim=3d --project_name=GNS-3D --run_name=ns1e-3 --log=False
 
