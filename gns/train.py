@@ -23,6 +23,9 @@ from gns import data_loader
 from gns import evaluate
 
 from cosine_annealing_warmup import CosineAnnealingWarmupRestarts
+import psutil
+
+
 
 # Meta parameters
 flags.DEFINE_enum(
@@ -138,13 +141,14 @@ def predict(
                   loss_strain: {loss_strain}''')
             print(f"Prediction example {example_i} takes {example_output['run_time']}")
             eval_loss.append(loss_total)
-
+            
+            process = psutil.Process(os.getpid())
+            print(f"Current memory usage: {process.memory_info().rss / (1024**3):.2f} GB")  # Memory usage in MB
             # Save rollout in testing
             if FLAGS.mode == 'rollout':
                 example_output['metadata'] = metadata
-                # simulation_name = metadata['file_test'][example_i]
-                filename = f'rollout_{example_i}.pkl'
-                filename = os.path.join(FLAGS.output_path, filename)
+                case_name = metadata["file_test"][example_i].split('.n')[0] + '.pkl'
+                filename = os.path.join(FLAGS.output_path, case_name)
                 with open(filename, 'wb') as f:
                     pickle.dump(example_output, f)
 
@@ -214,7 +218,7 @@ def train(
     """
     optimizer = torch.optim.Adam(simulator.parameters(), lr=FLAGS.lr_init)
     scheduler = CosineAnnealingWarmupRestarts(optimizer,
-                                              first_cycle_steps=70000,
+                                              first_cycle_steps=200000,
                                               cycle_mult=0.3,
                                               max_lr=0.001,
                                               min_lr=0,
@@ -467,11 +471,11 @@ def _get_simulator(
     
     simulator = learned_simulator.LearnedSimulator(
         particle_dimensions=FLAGS.dim,  # xyz
-        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 16 + 8,  # timesteps * 3 (dim) + 9 (particle type embedding) + 5 meta features
+        nnode_in=(INPUT_SEQUENCE_LENGTH - 1) * FLAGS.dim + 16 + 8,  # timesteps * 3 (dim) + 16 (particle type embedding) + 5 meta features + 3 xyz
         nedge_in=FLAGS.dim + 1,    # input edge features, relative displacement in all dims + distance between two nodes
         latent_dim=FLAGS.hidden_dim,
         nmessage_passing_steps=FLAGS.layers,
-        nmlp_layers=2,
+        nmlp_layers=1,
         mlp_hidden_dim=FLAGS.hidden_dim,
         connectivity_radius=FLAGS.connection_radius,
         boundaries=np.array(metadata['bounds']),
@@ -507,6 +511,6 @@ def main(_):
     elif FLAGS.mode in ['valid', 'rollout']:
         predict(simulator, metadata, device)
 
-
+    
 if __name__ == '__main__':
     app.run(main)

@@ -13,6 +13,8 @@ INPUT_SEQUENCE_LENGTH = 10  # So we can calculate the last 5 velocities.
 NUM_PARTICLE_TYPES = 3     # 0 beam, 1 rebar, 2 boundary
 REBAR_PARTICLE_ID = 1
 BOUNDARY_PARTICLE_ID = 2  
+import psutil
+import os
 
 
 def rollout_rmse(pred, gt):
@@ -137,5 +139,7 @@ def rollout(
         'rmse_strain': rmse_strain,
         'run_time': run_time
     }
-
+    process = psutil.Process(os.getpid())
+    print(f"Current memory usage: {process.memory_info().rss / (1024**2):.2f} MB")  # Memory usage in MB
+            
     return output_dict

@@ -8,7 +8,7 @@ import pathlib
 from parse_lsdyna_simulation import parse_simulation, parse_simulation_strain         
 
 
-dataset = 'Concrete2D-I-Step25'
+dataset = 'Concrete2D-C'
 in_dir = f'/home/jovyan/share/gns_data/Concrete2D-DYNA/'
 out_dir = f'/home/jovyan/share/gns_data/{dataset}/'
 pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)

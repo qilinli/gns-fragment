@@ -12,7 +12,8 @@ import os
 
 flags.DEFINE_string("rollout_dir", './rollouts/Fragment/', help="Directory where rollout.pkl are located")
 flags.DEFINE_string("rollout_name", 'rollout_0', help="Name of rollout `.pkl` file")
-flags.DEFINE_integer("step_stride", 2, help="Stride of steps to skip.")
+flags.DEFINE_integer("step_stride", 3, help="Stride of steps to skip.")
+flags.DEFINE_string("output_postfix", 'front', help="Name of output gif")
 
 FLAGS = flags.FLAGS
     
@@ -30,7 +31,7 @@ class Render():
         self.input_dir = input_dir
         self.input_name = input_name
         self.output_dir = input_dir
-        self.output_name = input_name
+        self.output_name = input_name + '_' + FLAGS.output_postfix
 
         # Get trajectory
         with open(f"{self.input_dir}{self.input_name}.pkl", "rb") as file:
@@ -56,7 +57,7 @@ class Render():
         self.num_steps = trajectory[rollout_cases[0][0]].shape[0]
         self.boundaries = rollout_data["metadata"]["bounds"]
         self.mask = rollout_data['particle_types'] != -1
-        id = int(FLAGS.rollout_name.split('_')[-1])
+        id = int(FLAGS.rollout_name.split('_')[0])
         self.case_name = rollout_data["metadata"]["file_test"][id]
         
     def color_map(self, datacase):
@@ -85,7 +86,9 @@ class Render():
         :return: gif format animation
         """
         # Init figures
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(12, 12))
+        plt.tick_params(axis='x', labelsize=12)
+        plt.tick_params(axis='both', labelsize=12)
         ax1 = fig.add_subplot(2, 1, 1, projection='3d')
         ax2 = fig.add_subplot(2, 1, 2, projection='3d')
         axes = [ax1, ax2]
@@ -95,9 +98,9 @@ class Render():
         render_datacases = [self.rollout_cases[0][1], self.rollout_cases[1][1]]
 
         # Get boundary of simulation
-        xboundary = self.boundaries[0]
-        yboundary = self.boundaries[1]
-        zboundary = self.boundaries[2]
+        xboundary = [-800, 800]
+        yboundary = [-1200, 1200]
+        zboundary = [0, 500]
         
         for ax in axes:
             ax.set_box_aspect([xboundary[1] - xboundary[0], 
@@ -123,9 +126,10 @@ class Render():
                                        yboundary[1] - yboundary[0], 
                                        zboundary[1] - zboundary[0]])
                 
-                axes[j].set_xlabel('x')
-                axes[j].set_ylabel('y')
-                axes[j].set_zlabel('z')
+                axes[j].set_xlabel('x', labelpad=20)
+                axes[j].set_ylabel('')
+                axes[j].set_yticks([])
+                axes[j].set_zlabel('z', labelpad=15)
                 axes[j].set_xlim([float(xboundary[0]), float(xboundary[1])])
                 axes[j].set_ylim([float(yboundary[0]), float(yboundary[1])])
                 axes[j].set_zlim([float(zboundary[0]), float(zboundary[1])])
@@ -136,15 +140,15 @@ class Render():
                                 color=np.array(color_map[i])[self.mask]
                                )
                 # rotate viewpoints angle little by little for each timestep
-                axes[j].view_init(elev=vertical_camera_angle, azim=i*viewpoint_rotation, roll=roll, vertical_axis='z')
+                axes[j].view_init(elev=vertical_camera_angle, azim=-90, roll=roll, vertical_axis='z')
                 axes[j].grid(True, which='both')
                 axes[j].set_title(f"{render_datacases[j]}-{self.case_name}, Step {i}")
 
         # Creat animation
         ani = animation.FuncAnimation(
-            fig, animate, frames=np.arange(0, self.num_steps, timestep_stride), interval=10)
+            fig, animate, frames=np.arange(self.num_steps-1, self.num_steps, timestep_stride), interval=10)
 
-        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=120, fps=1, writer='Pillow')
+        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=200, fps=1, writer='Pillow')
         print(f"Animation saved to: {self.output_dir}{self.output_name}.gif")
 
 
@@ -157,9 +161,9 @@ def main(_):
     render = Render(input_dir=FLAGS.rollout_dir, input_name=FLAGS.rollout_name)
     
     render.render_gif_animation(
-        point_size=1,
+        point_size=0.5,
         timestep_stride=FLAGS.step_stride,
-        vertical_camera_angle=-90,
+        vertical_camera_angle=0,
         viewpoint_rotation=0,
         roll=0
     )

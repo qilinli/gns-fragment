@@ -1,16 +1,16 @@
 # Cmd to run
 # Train
-CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/ --output_path=./rollouts/Fragment/ --batch_size=1 --noise_std=0.0005 --connection_radius=14 --layers=5 --hidden_dim=64 --lr_init=0.001 --ntraining_steps=100001 --lr_decay_steps=30000 --dim=3 --project_name=Fragment-3D-full --run_name=Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10_LRCosine --nsave_steps=3000 --log=1
+CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/ --output_path=./rollouts/Fragment/ --batch_size=1 --noise_std=0.0005 --connection_radius=14 --layers=5 --hidden_dim=64 --lr_init=0.001 --ntraining_steps=200001 --dim=3 --project_name=Fragment-3D-full --run_name=NS5e-4xy_1e-2z_R14_L5N64_PosNsx10_LRCosine --nsave_steps=1000 --log=1
 
 CUDA_VISIBLE_DEVICES=7 python -m gns.train --mode=train --data_path=./data/Concrete3D/ --model_path=./models/Concrete3D/ --output_path=./rollouts/Concrete3D/ --batch_size=1 --noise_std=0.001 --connection_radius=15 --layers=10 --lr_init=0.001 --ntraining_steps=300000 --lr_decay_steps=80000 --dim=3d --project_name=GNS-3D --run_name=ns1e-3 --log=False
 
 # Rollout
-CUDA_VISIBLE_DEVICES=5 python -m gns.train -mode=rollout --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/ --model_file=model-066000.pt --output_path=./rollouts/Fragment/ --noise_std=0.0005 --dim=3 --connection_radius=14 --layers=5 --hidden_dim=64
+CUDA_VISIBLE_DEVICES=7 python -m gns.train -mode=rollout --data_path=/home/jovyan/share/8TB-share/qilin/fragment/Step-0-100-3/ --model_path=./models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/ --model_file=model-066000.pt --output_path=./rollouts/Fragment/temp --noise_std=0.0005 --dim=3 --connection_radius=14 --layers=5 --hidden_dim=64
 
 CUDA_VISIBLE_DEVICES=5 python -m gns.train -mode=rollout --data_path=/home/jovyan/share/8TB-share/qilin/fragment/060-Step-10-100-3/ --model_path=./models/Fragment/Benchmark-NodeEmb16_noStrength/ --model_file=model-009000.pt --output_path=./rollouts/Fragment/Step-0-100-3 --connection_radius=14 --layers=5 --hidden_dim=64
 
 # Visualisation
-python -m gns.render_rollout_3d --rollout_dir=rollouts/Fragment/ --rollout_name=rollout_0 --step_stride=3
+python -m gns.render_rollout_3d --rollout_dir=rollouts/Fragment/generalisation-test --rollout_name=000_C_1-C30-60-4-400 --step_stride=3
 
 
 # Noise scale
@@ -18,7 +18,7 @@ Noise scale should be propotional to the velocity scale
 - 2D-C:        vel std (3.1e-5, 4.7e-5),         acc std (2.1e-6, 3.4e-6) ==>         noise std (6.7e-5, 6.7e-5)
 - 2D-I:        vel std (4.7e-5, 8.6e-5),         acc std (4.7e-6, 9.9e-6) ==>         noise std (5e-5, 5e-5)
 - 2D-T:        vel std (5.6e-3, 3.4e-3),         acc std (4.4e-4, 3.8e-4) ==>         noise std (3e-4, 3e-4)
-- 3D-Fragment: vel std (7.9e-2, 8.4e-2, 5.4e-1), acc std (2.3e-2, 3.7e-2, 2.3e-2) ==> noise std (?, ?, ?)
+- 3D-Fragment: vel std (7.9e-2, 8.4e-2, 5.4e-1), acc std (2.3e-2, 3.7e-2, 2.3e-2) ==> noise std (5e-4)
 
 # Notes
 - wandb step increase by default everytime wandb.log() is called
