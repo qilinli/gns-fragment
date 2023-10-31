@@ -57,7 +57,8 @@ class Render():
         self.num_steps = trajectory[rollout_cases[0][0]].shape[0]
         self.boundaries = rollout_data["metadata"]["bounds"]
         self.mask = rollout_data['particle_types'] != -1
-        id = int(FLAGS.rollout_name.split('_')[0])
+        #id = int(FLAGS.rollout_name.split('_')[0])
+        id = 0
         self.case_name = rollout_data["metadata"]["file_test"][id]
         
     def color_map(self, datacase):
@@ -86,11 +87,11 @@ class Render():
         :return: gif format animation
         """
         # Init figures
-        fig = plt.figure(figsize=(12, 12))
+        fig = plt.figure(figsize=(12, 7))
         plt.tick_params(axis='x', labelsize=12)
         plt.tick_params(axis='both', labelsize=12)
-        ax1 = fig.add_subplot(2, 1, 1, projection='3d')
-        ax2 = fig.add_subplot(2, 1, 2, projection='3d')
+        ax1 = fig.add_subplot(1, 2, 1, projection='3d')
+        ax2 = fig.add_subplot(1, 2, 2, projection='3d')
         axes = [ax1, ax2]
 
         # Define datacase name
@@ -121,7 +122,7 @@ class Render():
                     color_map = self.color_map('predicted_strain')
 
                     
-                axes[j] = fig.add_subplot(2, 1, j+1, projection='3d')
+                axes[j] = fig.add_subplot(1, 2, j+1, projection='3d')
                 axes[j].set_box_aspect([xboundary[1] - xboundary[0], 
                                        yboundary[1] - yboundary[0], 
                                        zboundary[1] - zboundary[0]])
@@ -140,15 +141,15 @@ class Render():
                                 color=np.array(color_map[i])[self.mask]
                                )
                 # rotate viewpoints angle little by little for each timestep
-                axes[j].view_init(elev=vertical_camera_angle, azim=-90, roll=roll, vertical_axis='z')
+                axes[j].view_init(elev=vertical_camera_angle, azim=0, roll=roll, vertical_axis='z')
                 axes[j].grid(True, which='both')
                 axes[j].set_title(f"{render_datacases[j]}-{self.case_name}, Step {i}")
 
         # Creat animation
         ani = animation.FuncAnimation(
-            fig, animate, frames=np.arange(self.num_steps-1, self.num_steps, timestep_stride), interval=10)
+            fig, animate, frames=np.arange(10, self.num_steps, timestep_stride), interval=10)
 
-        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=200, fps=1, writer='Pillow')
+        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=100, fps=1, writer='Pillow')
         print(f"Animation saved to: {self.output_dir}{self.output_name}.gif")
 
 

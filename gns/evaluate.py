@@ -4,6 +4,8 @@ import tree
 import time
 from absl import flags
 from absl import app
+import psutil
+import os
 
 from gns import learned_simulator
 from gns import reading_utils
@@ -13,8 +15,6 @@ INPUT_SEQUENCE_LENGTH = 10  # So we can calculate the last 5 velocities.
 NUM_PARTICLE_TYPES = 3     # 0 beam, 1 rebar, 2 boundary
 REBAR_PARTICLE_ID = 1
 BOUNDARY_PARTICLE_ID = 2  
-import psutil
-import os
 
 
 def rollout_rmse(pred, gt):
@@ -61,8 +61,8 @@ def rollout(
     # position is of shape [nparticles, timestep, dim], strains [timestep, nparticles]
     initial_positions = position[:, :INPUT_SEQUENCE_LENGTH]
     initial_strains = strains[:INPUT_SEQUENCE_LENGTH,:]
-    ground_truth_positions = position[:, INPUT_SEQUENCE_LENGTH:]
-    ground_truth_strains = strains[INPUT_SEQUENCE_LENGTH:, :]
+    ground_truth_positions = torch.tile(position[:, INPUT_SEQUENCE_LENGTH:], (1,1))
+    ground_truth_strains = torch.tile(strains[INPUT_SEQUENCE_LENGTH:, :], (1,1))
     nsteps = ground_truth_strains.shape[0]  # For 2D-T, nsteps vary between 29 and 30
     
     current_positions = initial_positions
@@ -115,6 +115,7 @@ def rollout(
     # Note that this rmse loss is not comparable with training loss (MSE)
     # Besides, trainig loss is measured on acceleartion,
     # while rollout loss is on position
+    print("Trajectory RMSE:")
     rmse_position = rollout_rmse(pred_positions.cpu().numpy(), 
                                  ground_truth_positions.cpu().numpy()
                                 )
@@ -124,6 +125,7 @@ def rollout(
     pred_strains[pred_strains > 2] = 2
     ground_truth_strains = torch.concatenate((initial_strains, ground_truth_strains), axis=0).cumsum(axis=0)
     
+    print("Strain RMSE:")
     rmse_strain = rollout_rmse(pred_strains.cpu().numpy(), 
                                ground_truth_strains.cpu().numpy()
                               )  
@@ -139,7 +141,5 @@ def rollout(
         'rmse_strain': rmse_strain,
         'run_time': run_time
     }
-    process = psutil.Process(os.getpid())
-    print(f"Current memory usage: {process.memory_info().rss / (1024**2):.2f} MB")  # Memory usage in MB
             
     return output_dict

@@ -227,7 +227,7 @@ class LearnedSimulator(nn.Module):
     """Predict position based on acceleration.
 
     Args:
-      current_positions: Current particle positions (nparticles, dim).
+      current_positions: Current particle positions (nparticles, INPUT_SEQUENCE_LENGTH, dim).
       nparticles_per_example: Number of particles per example. Default is 2
         examples per batch.
       particle_types: Particle types with shape (nparticles).

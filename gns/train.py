@@ -145,6 +145,8 @@ def predict(
             process = psutil.Process(os.getpid())
             print(f"Current memory usage: {process.memory_info().rss / (1024**3):.2f} GB")  # Memory usage in MB
             # Save rollout in testing
+            if not os.path.exists(FLAGS.output_path):
+                os.makedirs(FLAGS.output_path)
             if FLAGS.mode == 'rollout':
                 example_output['metadata'] = metadata
                 case_name = metadata["file_test"][example_i].split('.n')[0] + '.pkl'
