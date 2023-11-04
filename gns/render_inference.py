@@ -123,8 +123,8 @@ class Render():
                                        zboundary[1] - zboundary[0]])
                 
                 axes[j].set_xlabel('x', labelpad=20)
-                axes[j].set_ylabel('')
-                axes[j].set_yticks([])
+                #axes[j].set_ylabel('')
+                #axes[j].set_yticks([])
                 axes[j].set_zlabel('z', labelpad=15)
                 axes[j].set_xlim([float(xboundary[0]), float(xboundary[1])])
                 axes[j].set_ylim([float(yboundary[0]), float(yboundary[1])])
