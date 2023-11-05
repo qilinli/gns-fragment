@@ -298,7 +298,7 @@ def main(case, particle_trajectories, particle_strains, particle_type, rollout_s
         plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, view='bot', savename=str(eps_dir/ f'eps_bot_step_{step}'))
         plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, view='top', savename=str(eps_dir/ f'eps_top_step_{step}'))
         plot_fragment(masked_particle_position, fragments, fragments_vel, savename=str(fragment_dir/ f'fragment_step_{step}'))
-    
+
 
 if __name__ == '__main__':
     # Define the conditions for fragment filtering
