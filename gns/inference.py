@@ -17,10 +17,9 @@ from gns import learned_simulator
 from gns import reading_utils
 from gns import post_processing
 
-import psutil
 
 
-flags.DEFINE_string('data_path', '/home/jovyan/share/8TB-share/qilin/fragment/inference/', 
+flags.DEFINE_string('data_path', r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN\C30_120_6_0.4', 
                     help='The dataset directory.')
 flags.DEFINE_string('model_path', './models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
     'The path for saving checkpoints of the model.'))
@@ -211,6 +210,7 @@ def load_sample(sample_path, metadata, device):
 def main(_):
     start_time = time.time()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
     print(f"device = {device}")
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)
@@ -248,7 +248,7 @@ def main(_):
                                   meta_feature,
                                   device)
                              
-        # Save rollout in testing
+        # # Save rollout in testing
         sample_output['metadata'] = metadata
         case_name = sample_path.split('.')[0].split('/')[-1] + '.pkl'
         filename = os.path.join(FLAGS.output_path, case_name)
@@ -259,7 +259,7 @@ def main(_):
         
         # Post-processing to extract reulst
         post_processing_start_time = time.time()
-        post_processing.main(case_name[:-4], 
+        post_processing.main('6', 
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type']

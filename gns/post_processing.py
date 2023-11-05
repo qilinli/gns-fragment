@@ -269,7 +269,7 @@ def compute_max_vel(fragments_vel):
     return (np.linalg.norm(fragments_vel, axis=1)).max()
 
 def main(case, particle_trajectories, particle_strains, particle_type, rollout_step=81):
-    case_dir = Path(f'/home/jovyan/work/gns-fragment/rollouts/Fragment/inference/temp/{case}_0.4-1ms/')
+    case_dir = Path(f'rollouts/Fragment/inference/temp/{case}_0.4-1ms/')
     property_dir = case_dir / 'property'
     Path(property_dir).mkdir(parents=True, exist_ok=True)
 
