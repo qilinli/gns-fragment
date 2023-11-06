@@ -16,28 +16,17 @@ def extract_trajectory_type_strain(d3plot):
     ## node_displacement is actually node coords in all steps, shape [nstep, nnodes, 3]
     node_trajectories = d3plot.arrays["node_displacement"]
     ## Each solid element (cubic) is defined by 8 nodes
-    element_solid_node_indexes = d3plot.arrays["element_solid_node_indexes"]
+    # element_solid_node_indexes = d3plot.arrays["element_solid_node_indexes"]
     ## each beam involves 2 nodes, but the array shows 5 with 3rd being the same as 2nd
     ## and 4th, 5th looks unrelated
     ## Using LS-PrePost outputs 3 nodes per beam, with 3rd also being the same as 2nd
     ## Therefore, only the first 2 nodes are used
     element_beam_node_indexes = d3plot.arrays["element_beam_node_indexes"][:, :2]
-
-
-    # Extract SPH particle trajectoriesy, each particle is a node and is numbered after
-    # all solid element nodes. Do not need to worry about beam element nodes, as they are
-    # shared with solid nodes. So we just need to eliminate all solid nodes from all nodes
-    # to get SPH particles(nodes).
     
     # Convert the solid node indexes to a set for quick look-up
-    solid_nodes_set = set(element_solid_node_indexes.flatten())
-    # Create an array of all node indexes
-    all_node_indexes = np.arange(node_trajectories.shape[1])
-    # Find the indexes of nodes that are not part of any solid
-    non_solid_node_indexes = np.array([i for i in all_node_indexes if i not in solid_nodes_set])
-    # Extract the 3D positions of the non-solid nodes
-    SPH_trajectories = node_trajectories[:, non_solid_node_indexes, :]
-    
+    sph_node_indexes = d3plot.arrays["sph_node_indexes"]
+    SPH_trajectories = node_trajectories[:, sph_node_indexes, :]
+
     element_beam_node_indexes = np.unique(element_beam_node_indexes)
     
     element_beam_trajectories = node_trajectories[:, element_beam_node_indexes, :]
@@ -61,17 +50,6 @@ def extract_trajectory_type_strain(d3plot):
     
     return particle_trajectories, particle_type, particle_strains
 
-def enforce_eps_non_decreasing(particle_strains):
-    # Compute the differences between adjacent time steps
-    strains_diff = np.diff(particle_strains, axis=0)
-
-    # Set any negative differences to zero
-    strains_diff[strains_diff < 0] = 0
-
-    # Reconstruct the corrected strains using cumulative sum,
-    # starting with the initial strain values
-    corrected_strains = np.concatenate((particle_strains[:1, :], strains_diff), axis=0).cumsum(axis=0)
-    return corrected_strains
 
 if __name__ == "__main__":
     path_to_d3plot = r'C:\Users\272766h\Curtin University of Technology Australia\Zitong Wang - Data generation\C30_120mm_0.4m\5kg\d3plot'

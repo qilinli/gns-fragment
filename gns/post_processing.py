@@ -48,7 +48,6 @@ def compute_fragment(particle_position, dist_thres=10.2, max_fragment_size=100):
                 fragments.append(new_fragment)
                 particles_in_fragments.update(new_fragment)
                 
-    #print('aaa',[particle_position[list(new_fragment)] for new_fragment in fragments if len(new_fragment)>10])
     
     return  fragments
 
@@ -269,7 +268,7 @@ def compute_max_vel(fragments_vel):
     return (np.linalg.norm(fragments_vel, axis=1)).max()
 
 def main(case, particle_trajectories, particle_strains, particle_type, rollout_step=81):
-    case_dir = Path(f'rollouts/Fragment/inference/temp/{case}_0.4-1ms/')
+    case_dir = Path(f'rollouts/Fragment/inference/temp/{case}_10/')
     property_dir = case_dir / 'property'
     Path(property_dir).mkdir(parents=True, exist_ok=True)
 

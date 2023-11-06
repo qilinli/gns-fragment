@@ -5,7 +5,7 @@
 import numpy as np
 
 
-def check_data_integrity(particle_trajectories, particle_type, particle_strains):
+def check_data_integrity(particle_trajectories, particle_strains, particle_type):
     nstep, nparticles, _ = particle_trajectories.shape
     
     # Shape check:
@@ -24,11 +24,6 @@ def check_data_integrity(particle_trajectories, particle_type, particle_strains)
     
     if np.any((particle_strains < 0) | (particle_strains > 2)):
         print("Effective Plastic strain values out of range [0, 2]")
-        
-    strains_diff = np.diff(particle_strains, axis=0)
-    
-    if np.any(strains_diff < 0):
-        print("Non monotonical eps detected")
         
         
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ from gns import post_processing
 
 
 
-flags.DEFINE_string('data_path', r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN\C30_120_6_0.4', 
+flags.DEFINE_string('data_path', r'C:\Users\272766h\Curtin University of Technology Australia\Zitong Wang - Data generation\C30_120mm\0.3_10', 
                     help='The dataset directory.')
 flags.DEFINE_string('model_path', './models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
     'The path for saving checkpoints of the model.'))
@@ -174,12 +174,9 @@ def rollout(
 
 
 def load_sample(sample_path, metadata, device):
-    STEP_SIZE = 6
     data = np.load(sample_path)
     # particle trajectory
     positions = data['particle_trajectories'].transpose((1, 0, 2)) # (nparticles, steps, 3)
-    positions = positions[:, ::STEP_SIZE, :]
-    positions = positions[:, -INPUT_SEQUENCE_LENGTH:]
     positions = torch.tensor(positions).to(torch.float32).contiguous().to(device)
     # particle type
     particle_type = data['particle_type']
@@ -187,21 +184,11 @@ def load_sample(sample_path, metadata, device):
     n_particles_per_example = torch.tensor(positions.shape[0], dtype=torch.int32).to(device)
     # particle strain
     particle_strains = data['particle_strains']    
-    #eps to epsi
-    particle_strains = particle_strains[::STEP_SIZE, :]
-    strains_diff = np.diff(particle_strains, axis=0)
-    strains_diff[strains_diff < 0] = 0
-    # 0-0.6 ms
-    #particle_strains = np.concatenate((particle_strains[0:1, :], strains_diff), axis=0)
-    # t + t+0.6 ms
-    particle_strains = np.concatenate((particle_strains[-INPUT_SEQUENCE_LENGTH:-INPUT_SEQUENCE_LENGTH+1, :], strains_diff[-INPUT_SEQUENCE_LENGTH-1:]), axis=0)
-                                                                                                                          
-    particle_strains = particle_strains[:INPUT_SEQUENCE_LENGTH]
-    
     particle_strains = torch.tensor(particle_strains).to(torch.float32).contiguous().to(device)
     # meta feature
     meta_feature = np.array([0, 0, 400, 0, 0, 5, 30])
-    meta_feature[-2] = float(sample_path.split('.n')[0][-1])
+    #meta_feature[-2] = float(sample_path.split('.n')[0][-1])
+    meta_feature[-2] = 10.0
     meta_feature = (meta_feature - metadata['meta_mean']) / metadata['meta_std']
     meta_feature = torch.tensor(meta_feature).to(torch.float32).to(device)
     
@@ -212,7 +199,7 @@ def main(_):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     device = 'cpu'
     print(f"device = {device}")
-    metadata = reading_utils.read_metadata(FLAGS.data_path)
+    metadata = reading_utils.read_metadata(FLAGS.data_path.split('\\0.')[0])
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)
     # Load weights
     try:
@@ -251,15 +238,15 @@ def main(_):
         # # Save rollout in testing
         sample_output['metadata'] = metadata
         case_name = sample_path.split('.')[0].split('/')[-1] + '.pkl'
-        filename = os.path.join(FLAGS.output_path, case_name)
-        with open(filename, 'wb') as f:
-            pickle.dump(sample_output, f)
+        # filename = os.path.join(FLAGS.output_path, case_name)
+        # with open(filename, 'wb') as f:
+        #     pickle.dump(sample_output, f)
         
         case_rollout_time = time.time() - case_start_time
         
         # Post-processing to extract reulst
         post_processing_start_time = time.time()
-        post_processing.main('6', 
+        post_processing.main(case_name[-7:-4], 
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type']
