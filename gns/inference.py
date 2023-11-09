@@ -19,7 +19,7 @@ from gns import post_processing
 
 
 
-flags.DEFINE_string('data_path', r'C:\Users\272766h\Curtin University of Technology Australia\Zitong Wang - Data generation\C30_120mm\0.3_10', 
+flags.DEFINE_string('data_path', r'C:\Users\272766h\Curtin University of Technology Australia\Zitong Wang - Data generation\C30_120mm\0.8_10', 
                     help='The dataset directory.')
 flags.DEFINE_string('model_path', './models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
     'The path for saving checkpoints of the model.'))
@@ -237,7 +237,8 @@ def main(_):
                              
         # # Save rollout in testing
         sample_output['metadata'] = metadata
-        case_name = sample_path.split('.')[0].split('/')[-1] + '.pkl'
+        case_name = FLAGS.data_path.split('\\')[-1][:3]
+        print(case_name)
         # filename = os.path.join(FLAGS.output_path, case_name)
         # with open(filename, 'wb') as f:
         #     pickle.dump(sample_output, f)
@@ -246,7 +247,7 @@ def main(_):
         
         # Post-processing to extract reulst
         post_processing_start_time = time.time()
-        post_processing.main(case_name[-7:-4], 
+        post_processing.main(case_name, 
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type']

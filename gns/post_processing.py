@@ -281,7 +281,7 @@ def main(case, particle_trajectories, particle_strains, particle_type, rollout_s
     fragment_dir = case_dir / 'fragment'
     Path(fragment_dir).mkdir(parents=True, exist_ok=True)
     
-    charge_weight = int(case[-1])
+    charge_weight = 10
     mask = compute_particle_mask(particle_trajectories[0], charge_weight)
     eps_bug_mask = compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type)
     
