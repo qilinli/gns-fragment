@@ -22,3 +22,7 @@ Install other dependencies.
 pip install -r requirements.txt
 ```
 
+## Inference
+```
+python -m gns.inference
+```
