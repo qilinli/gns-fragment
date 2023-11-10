@@ -165,7 +165,7 @@ def plot_mass_distribution_bar(mass_distribution, savename):
     plt.savefig(savename, bbox_inches='tight')
     plt.close()
 
-def plot_eps(particle_pos, particle_strain, particle_type, eps_bug_mask, view, savename):
+def plot_eps(particle_pos, particle_strain, particle_type, eps_bug_mask, case, view, savename):
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -180,7 +180,7 @@ def plot_eps(particle_pos, particle_strain, particle_type, eps_bug_mask, view, s
     ax.set_box_aspect([np.ptp(a) for a in particle_pos.T])
 
     # Remove grid, ticks, and labels
-    ax.set_title(savename)
+    ax.set_title(case)
     ax.grid(False)
     ax.set_zticklabels([])
     ax.set_xlabel('X')
@@ -206,7 +206,7 @@ def plot_eps(particle_pos, particle_strain, particle_type, eps_bug_mask, view, s
     plt.savefig(savename)
     plt.close()
 
-def plot_fragment(masked_particle_position, fragments, fragments_vel, savename):
+def plot_fragment(masked_particle_position, fragments, fragments_vel, case, savename):
     positions = masked_particle_position
     fragments_vel = np.linalg.norm(fragments_vel, axis=1)
     norm = colors.Normalize(vmin=np.min(fragments_vel), vmax=np.max(fragments_vel))
@@ -241,7 +241,7 @@ def plot_fragment(masked_particle_position, fragments, fragments_vel, savename):
     ax.set_zlim(positions[:, 2].min(), positions[:, 2].max())
 
     # Set labels
-    ax.set_title('Filename')
+    ax.set_title(case)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -267,21 +267,22 @@ def compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type
 def compute_max_vel(fragments_vel):
     return (np.linalg.norm(fragments_vel, axis=1)).max()
 
-def main(case, particle_trajectories, particle_strains, particle_type, rollout_step=81):
-    case_dir = Path(f'rollouts/Fragment/inference/temp/{case}_10/')
-    property_dir = case_dir / 'property'
+def main(sample_path, charge_weight, particle_trajectories, particle_strains, particle_type, rollout_step=81):
+    root_dir = Path(sample_path).parent.parent
+    case_name = Path(sample_path).parent.name
+    output_path = root_dir / 'output' / case_name
+    property_dir = output_path / 'property'
     Path(property_dir).mkdir(parents=True, exist_ok=True)
 
-    mass_dir = case_dir / 'mass'
+    mass_dir = output_path / 'mass'
     Path(mass_dir).mkdir(parents=True, exist_ok=True)
 
-    eps_dir = case_dir / 'eps'
+    eps_dir = output_path / 'eps'
     Path(eps_dir).mkdir(parents=True, exist_ok=True)
 
-    fragment_dir = case_dir / 'fragment'
+    fragment_dir = output_path / 'fragment'
     Path(fragment_dir).mkdir(parents=True, exist_ok=True)
     
-    charge_weight = 10
     mask = compute_particle_mask(particle_trajectories[0], charge_weight)
     eps_bug_mask = compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type)
     
@@ -290,13 +291,14 @@ def main(case, particle_trajectories, particle_strains, particle_type, rollout_s
         masked_particle_previous_position = particle_trajectories[step-1, mask]
         fragments = compute_fragment(masked_particle_position, dist_thres=10.2, max_fragment_size=100)
         fragments_centre, fragments_mass, fragments_diameter, fragments_vel = compute_fragment_property(masked_particle_position, masked_particle_previous_position, fragments)
-        save_property_csv(fragments_centre, fragments_mass, fragments_diameter, fragments_vel, case, step, savename=str(property_dir / f'fragments_properties_step_{step}.csv'))
+        save_property_csv(fragments_centre, fragments_mass, fragments_diameter, fragments_vel, 
+                          case=output_path.name, step=step, savename=str(property_dir / f'fragments_properties_step_{step}.csv'))
 
         mass_distribution = compute_mass_distribution(fragments_mass, fragments_diameter)
         plot_mass_distribution_bar(mass_distribution, savename=str(mass_dir/ f'mass_step_{step}'))
-        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, view='bot', savename=str(eps_dir/ f'eps_bot_step_{step}'))
-        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, view='top', savename=str(eps_dir/ f'eps_top_step_{step}'))
-        plot_fragment(masked_particle_position, fragments, fragments_vel, savename=str(fragment_dir/ f'fragment_step_{step}'))
+        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='bot', savename=str(eps_dir/ f'eps_bot_step_{step}'))
+        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='top', savename=str(eps_dir/ f'eps_top_step_{step}'))
+        plot_fragment(masked_particle_position, fragments, fragments_vel, case=case_name, savename=str(fragment_dir/ f'fragment_step_{step}'))
 
 
 if __name__ == '__main__':

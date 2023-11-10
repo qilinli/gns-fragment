@@ -1,6 +1,7 @@
 absl-py
 autopep8
 numpy
+lasso-python
 dm-tree
 matplotlib
 ipykernel

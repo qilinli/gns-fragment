@@ -9,12 +9,15 @@ from check_data_integrity import check_data_integrity
 from data_processing import enforce_eps_non_decreasing, timestep_downsample
 
 # Define the root folder as a Path object
-root_folder = Path(r'C:\Users\272766h\Curtin University of Technology Australia\Zitong Wang - Data generation\C30_120mm\0.8_10')
+root_dir = Path(r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN')
 
 # Use glob to find all d3plot files; this returns a generator
-all_d3plots = root_folder.rglob('d3plot')
+all_d3plots = root_dir.rglob('d3plot')
+
+# Create output directory
 
 # Use tqdm for progress indication
+successful_read_count = 0
 for path_to_d3plot in tqdm.tqdm(all_d3plots):
     d3plot = D3plot(str(path_to_d3plot))
 
@@ -25,12 +28,17 @@ for path_to_d3plot in tqdm.tqdm(all_d3plots):
     particle_strains = enforce_eps_non_decreasing(particle_strains)
     particle_trajectories, particle_strains = timestep_downsample(particle_trajectories, particle_strains)
     
-    # Check data integrity
-    check_data_integrity(particle_trajectories, particle_strains, particle_type)
+    # Perform integrity check
+    try:
+        check_data_integrity(particle_trajectories, particle_strains, particle_type)
+    except ValueError as e:
+        # Handle the error as you see fit (print, log, skip, etc.)
+        print(f"Data integrity check failed for {path_to_d3plot}: {e}")
+        print(f"Skip {path_to_d3plot}.")   # Skip this file or use other error handling
+        continue
     
     # Create a path for the npz file in the same directory as the d3plot file
-    new_name = f"{path_to_d3plot.stem}_0.8.npz"
-    path_to_npz = path_to_d3plot.with_name(new_name)
+    path_to_npz = path_to_d3plot.parent / (path_to_d3plot.parent.name + '.npz')
 
     # Save data as an npz file
     with path_to_npz.open('wb') as f:
@@ -39,4 +47,7 @@ for path_to_d3plot in tqdm.tqdm(all_d3plots):
                  particle_strains=particle_strains, 
                  particle_type=particle_type
                  )
-        
+    print(f"Successfully saved: {path_to_npz}")
+    successful_read_count += 1
+print("==============Finished data reading.================")    
+print(f"Successfully read and saved {successful_read_count} cases.")
