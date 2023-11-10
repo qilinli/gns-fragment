@@ -71,4 +71,6 @@ After running it should generate all figures and csvs, which are all saved in th
 |       ├── 0.3_4/
 |       └── ...
 ```
+![Example Image of EPS](/figures/eps_top_step_80.png "Effective Plastic Strain")
+![Example Image of EPS](/figures/fragment_step_80.png "Effective Plastic Strain")
 
