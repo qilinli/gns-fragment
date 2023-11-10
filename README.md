@@ -39,7 +39,7 @@ Data folder following structure
 ```
 Run the following to extract all data from d3plot to numpy. Each case will result in a .npz file saved in the case subfolder, e.g., 0.2_4/0.2_4.npz, which will then be used for FGN inference.
 ```
-python .\lsdyna\d3plot_to_npz.py
+python .\lsdyna\d3plot_to_npz.py --data_path=$PATH_TO_DATA
 ```
 
 ## Inference

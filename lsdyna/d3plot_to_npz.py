@@ -1,6 +1,6 @@
 # This code is to read all d3plots in a root folder and
 # Save them npz files for future usage
-
+import argparse
 from pathlib import Path
 import tqdm
 import numpy as np
@@ -8,11 +8,19 @@ from read_d3plot import extract_trajectory_type_strain, D3plot
 from check_data_integrity import check_data_integrity
 from data_processing import enforce_eps_non_decreasing, timestep_downsample
 
+
+parser = argparse.ArgumentParser(description="Process and save d3plot data as npz files.")
+parser.add_argument("--data_path", 
+                    default=r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN',
+                    help="The data path containing all cases with d3plot.")
+
+args = parser.parse_args()
+     
 # Define the root folder as a Path object
-root_dir = Path(r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN')
+data_path = Path(args.data_path)
 
 # Use glob to find all d3plot files; this returns a generator
-all_d3plots = root_dir.rglob('d3plot')
+all_d3plots = data_path.rglob('d3plot')
 
 # Create output directory
 
