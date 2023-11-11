@@ -26,7 +26,7 @@ all_d3plots = data_path.rglob('d3plot')
 
 # Use tqdm for progress indication
 successful_read_count = 0
-for path_to_d3plot in tqdm.tqdm(all_d3plots):
+for path_to_d3plot in all_d3plots:
     d3plot = D3plot(str(path_to_d3plot))
 
     # Read data from d3plot

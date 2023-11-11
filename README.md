@@ -19,6 +19,7 @@ conda install pyg -c pyg
 ```
 Install other dependencies.
 ```
+cd gns-fragment
 pip install -r requirements.txt
 ```
 
