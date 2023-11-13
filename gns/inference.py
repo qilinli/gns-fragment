@@ -18,7 +18,7 @@ from gns import post_processing
 
 # Path
 flags.DEFINE_string('data_path', r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN', help='The dataset directory.')
-flags.DEFINE_string('model_path', './model_4_inference/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
+flags.DEFINE_string('model_path', './model_4_inference/NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
     'The path for saving checkpoints of the model.'))
 flags.DEFINE_string('model_file', 'model-066000.pt', help=('Model filename (.pt) to resume from.'))
 
