@@ -136,32 +136,34 @@ def plot_mass_distribution_bar(mass_distribution, savename):
     
     # Create a DataFrame to hold the data
     df = pd.DataFrame({
-        'Categories': x_labels,  # Repeat the labels to create two groups
-        'Values': mass_distribution,     # Concatenate the data for both groups
-        'Data': ['dummy']*len(mass_distribution)  # Group label for each bar
+        'Categories': x_labels,
+        'Values': mass_distribution,
+        'Data': ['dummy']*len(mass_distribution)
     })
 
     fig, ax = plt.subplots(figsize=(7, 5))
 
-    # Use Seaborn's barplot to create a grouped bar chart
+    # Use Seaborn's barplot
     sns.set_theme(style='ticks')
     sns.barplot(data=df, x='Categories', y='Values', hue='Data')
 
-    # Change font size of tick labels
+    # Adjusting font size of tick labels and axis labels
     ax.tick_params(labelsize=20)
-
-    # Change font size of axis labels
     ax.set_ylabel('Mass (kg)', fontsize=24)
     ax.set_xlabel('Fragment size (mm)', fontsize=24)
-    #ax.legend(loc=none, fontsize=20)
     ax.legend_.remove()
     ax.grid(True, linestyle='--')
-    ax.set_ylim([0, 30])
-    
-    # Add annotation for total mass
-    total_mass = df['Values'].sum()
-    ax.text(0.5, 1.05, f'Total Mass: {total_mass:.2f} kg', ha='center', va='bottom', transform=ax.transAxes, fontsize=20)
-    
+
+    # Adaptive ylim based on mass_distribution values
+    max_value = max(mass_distribution)
+    ax.set_ylim([0, max_value + (0.1 * max_value)])  # Add 10% to the max value for spacing
+
+    # Add title with mass_distribution value with .3f precision
+    formatted_values = ', '.join([f'{val:.2f}' for val in mass_distribution])
+    title_str = f"Mass Distribution Bar Plot - Values: {formatted_values}"
+    ax.set_title(title_str, fontsize=20)
+
+    # Save the plot
     plt.savefig(savename, bbox_inches='tight')
     plt.close()
 
