@@ -1,9 +1,11 @@
 absl-py
 autopep8
 numpy
+lasso-python
 dm-tree
 matplotlib
-wandb
 ipykernel
-torch-cluster
-
+trimesh
+pandas
+seaborn
+torch-cluster -f https://data.pyg.org/whl/torch-2.1.0+cpu.html

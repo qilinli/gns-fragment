@@ -5,9 +5,7 @@ import os
 import os.path as osp
 import sys
 import torch
-import pickle
 import glob
-import re
 import tree
 import time
 from absl import flags
@@ -17,16 +15,12 @@ from gns import learned_simulator
 from gns import reading_utils
 from gns import post_processing
 
-import psutil
 
-
-flags.DEFINE_string('data_path', '/home/jovyan/share/8TB-share/qilin/fragment/inference/', 
-                    help='The dataset directory.')
-flags.DEFINE_string('model_path', './models/Fragment/Benchmark-NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
+# Path
+flags.DEFINE_string('data_path', r'C:\Users\kylin\OneDrive - Curtin\research\civil_engineering\data\FGN', help='The dataset directory.')
+flags.DEFINE_string('model_path', './model_4_inference/NS5e-4_1e-2_R14_L5N64_PosNsx10/', help=(
     'The path for saving checkpoints of the model.'))
-flags.DEFINE_string('model_file', 'model-066000.pt', help=(
-    'Model filename (.pt) to resume from. Can also use "latest" to default to newest file.'))
-flags.DEFINE_string('output_path', 'rollouts/Fragment/inference/', help='The path for saving outputs (e.g. rollouts).')
+flags.DEFINE_string('model_file', 'model-066000.pt', help=('Model filename (.pt) to resume from.'))
 
 # Model parameters
 flags.DEFINE_float('connection_radius', 14, help='connectivity radius for graph.')
@@ -35,10 +29,17 @@ flags.DEFINE_integer('hidden_dim', 64, help='Number of neurons in hidden layers.
 flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 flags.DEFINE_float('noise_std', 5e-4, help='The std deviation of the noise.')
 
+# Inference parameters
+flags.DEFINE_integer('nsteps', 81, help='The total number of rollout steps. Each step is 0.06 ms.')
 
 FLAGS = flags.FLAGS
 
-Stats = collections.namedtuple('Stats', ['mean', 'std'])
+#Stats = collections.namedtuple('Stats', ['mean', 'std'])
+SampleData = collections.namedtuple('SampleData', ['positions', 
+                                                   'particle_type', 
+                                                   'n_particles_per_example',
+                                                   'particle_strains',
+                                                   'meta_feature'])
 
 INPUT_SEQUENCE_LENGTH = 10  # So we can calculate the last 9 velocities.
 NUM_PARTICLE_TYPES = 3     # concrete 0, rebar 1
@@ -101,13 +102,13 @@ def _get_simulator(
 @torch.no_grad()
 def rollout(
         simulator: learned_simulator.LearnedSimulator,
-        position: torch.tensor,
+        initial_positions: torch.tensor,
         particle_type: torch.tensor,
         n_particles_per_example: torch.tensor,
-        strains: torch.tensor,
+        initial_strains: torch.tensor,
+        meta_feature: torch.tensor,
         nsteps: int,
         particle_dim: int,
-        meta_feature: torch.tensor,
         device):
     """Rolls out a trajectory by applying the model recursively.
   
@@ -117,8 +118,6 @@ def rollout(
       nsteps: Number of steps.
     """
     # position is of shape [nparticles, timestep, dim], strains [timestep, nparticles]
-    initial_positions = position
-    initial_strains = strains
     
     current_positions = initial_positions
     pred_positions = []
@@ -174,98 +173,77 @@ def rollout(
     return output_dict
 
 
-def load_sample(sample_path, metadata, device):
-    STEP_SIZE = 6
+def load_sample(sample_path, charge_weight, metadata, device):
     data = np.load(sample_path)
-    # particle trajectory
     positions = data['particle_trajectories'].transpose((1, 0, 2)) # (nparticles, steps, 3)
-    positions = positions[:, ::STEP_SIZE, :]
-    positions = positions[:, -INPUT_SEQUENCE_LENGTH:]
-    positions = torch.tensor(positions).to(torch.float32).contiguous().to(device)
-    # particle type
     particle_type = data['particle_type']
-    particle_type = torch.tensor(particle_type, dtype=torch.int32).contiguous().to(device)  
-    n_particles_per_example = torch.tensor(positions.shape[0], dtype=torch.int32).to(device)
-    # particle strain
     particle_strains = data['particle_strains']    
-    #eps to epsi
-    particle_strains = particle_strains[::STEP_SIZE, :]
-    strains_diff = np.diff(particle_strains, axis=0)
-    strains_diff[strains_diff < 0] = 0
-    # 0-0.6 ms
-    #particle_strains = np.concatenate((particle_strains[0:1, :], strains_diff), axis=0)
-    # t + t+0.6 ms
-    particle_strains = np.concatenate((particle_strains[-INPUT_SEQUENCE_LENGTH:-INPUT_SEQUENCE_LENGTH+1, :], strains_diff[-INPUT_SEQUENCE_LENGTH-1:]), axis=0)
-                                                                                                                          
-    particle_strains = particle_strains[:INPUT_SEQUENCE_LENGTH]
-    
-    particle_strains = torch.tensor(particle_strains).to(torch.float32).contiguous().to(device)
-    # meta feature
+
     meta_feature = np.array([0, 0, 400, 0, 0, 5, 30])
-    meta_feature[-2] = float(sample_path.split('.n')[0][-1])
+    meta_feature[-2] = float(charge_weight)
     meta_feature = (meta_feature - metadata['meta_mean']) / metadata['meta_std']
-    meta_feature = torch.tensor(meta_feature).to(torch.float32).to(device)
     
-    return positions, particle_type, n_particles_per_example, particle_strains, meta_feature
+    sample_data = SampleData(
+        positions=torch.tensor(positions, dtype=torch.float32).contiguous().to(device),
+        particle_type=torch.tensor(particle_type, dtype=torch.int32).contiguous().to(device),
+        n_particles_per_example=torch.tensor(positions.shape[0], dtype=torch.int32).to(device),
+        particle_strains=torch.tensor(particle_strains, dtype=torch.float32).contiguous().to(device),
+        meta_feature=torch.tensor(meta_feature, dtype=torch.float32).to(device)
+    )
+    
+    return sample_data
     
 def main(_):
-    start_time = time.time()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"device = {device}")
+    # Initialisation
+    device = 'cpu'
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)
+    
     # Load weights
     try:
         simulator.load(FLAGS.model_path + FLAGS.model_file)
     except:
         print("Failed to load model weights!")
         sys.exit(1)
+    simulator.load(FLAGS.model_path + FLAGS.model_file)
     simulator.to(device)
     simulator.eval()
     
-    # Init output dir
-    if not os.path.exists(FLAGS.output_path):
-        os.makedirs(FLAGS.output_path)
-        
-    # Load data
-    # each step of FGN is 0.06 ms
-    nsteps = 71
-    dataset = glob.glob(osp.join(FLAGS.data_path, 'd3*.npz'))
+    # Create output directory if it doesn't exist
+    output_path = osp.join(FLAGS.data_path, 'output')
+    os.makedirs(output_path, exist_ok=True)
+    
+    # Adjust rollout steps, assuming initialisation takes 10 steps
+    nsteps = FLAGS.nsteps - 10
+    
+    # Find all .npz files recursively in data_path
+    dataset = glob.glob(osp.join(FLAGS.data_path, '**', '*.npz'), recursive=True)
+    
+    # Inference for each case (npz) found
     for idx, sample_path in enumerate(dataset):
         case_start_time = time.time()
-        positions, particle_type, n_particles_per_example, strains, meta_feature = load_sample(sample_path,
-                                                                                              metadata,
-                                                                                              device)
+        print(f"{idx+1}/{len(dataset)} FGN Inference on {osp.basename(sample_path)}...")
+        case_name = osp.basename(osp.dirname(sample_path))
+        charge_weight = float(case_name.split('_')[-1])   #TODO, double check
+        sample_data = load_sample(sample_path, charge_weight, metadata, device)
         
         # Predict example rollout
-        sample_output = rollout(simulator,
-                                  positions,
-                                  particle_type,
-                                  n_particles_per_example,
-                                  strains,
-                                  nsteps,
-                                  FLAGS.dim,
-                                  meta_feature,
-                                  device)
+        sample_output = rollout(simulator, *sample_data, nsteps, FLAGS.dim, device)
                              
-        # Save rollout in testing
-        sample_output['metadata'] = metadata
-        case_name = sample_path.split('.')[0].split('/')[-1] + '.pkl'
-        filename = os.path.join(FLAGS.output_path, case_name)
-        with open(filename, 'wb') as f:
-            pickle.dump(sample_output, f)
-        
         case_rollout_time = time.time() - case_start_time
         
         # Post-processing to extract reulst
         post_processing_start_time = time.time()
-        post_processing.main(case_name[:-4], 
+        post_processing.main(sample_path,
+                             charge_weight, 
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type']
                             )
         postprocessing_time = time.time() - post_processing_start_time
-        print(f"Finished {idx}/{len(dataset)} {case_name}, it takes {case_rollout_time:.0f}s and {postprocessing_time:.0f}s for rollout and post-processing on {device}")
+        print(f"Finished. it takes {case_rollout_time:.0f}s and {postprocessing_time:.0f}s "
+              f"for rollout and post-processing on {device}")
+        print("======================================================")
         
 if __name__ == '__main__':
     app.run(main)

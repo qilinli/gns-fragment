@@ -1,77 +1,77 @@
-# Graph Network Simulator (GNS)
-> PyTorch version of Graph Network Simulator based on [https://arxiv.org/abs/2002.09405](https://arxiv.org/abs/2002.09405) and [https://github.com/deepmind/deepmind-research/tree/master/learning_to_simulate](https://github.com/deepmind/deepmind-research/tree/master/learning_to_simulate).
+# Fragmentation Graph Network (FGN)
+> This is the official implementation of FGN. 
+The code is heavily based on the [Pytorch version of GNS](https://github.com/geoelements/gns) and [Tensorflow version of GNS](https://github.com/deepmind/deepmind-research/tree/master/learning_to_simulate).
 
-Krishna Kumar, The University of Texas at Austin.
-Joseph Vantassel, Texas Advanced Computing Center, UT Austin.
+Qilin Li, Zitong Wang, Wensu Chen, Ling Li, Hong Hao, Curtin University
 
-## Run GNS
-> Training
-```shell
-export DATASET_NAME="Sand"
-export WORK_DIR=${WORK_DIR}/
-python3 -m gns.train --data_path="${WORK_DIR}/datasets/${DATASET_NAME}/" --model_path="${WORK_DIR}/models/${DATASET_NAME}/" --output_path="${WORK_DIR}/rollouts/${DATASET_NAME}/" -ntraining_steps=100
+## Installation
+Create python environmen. The code is tested with Python 3.11 and Pytorch 2.1.
+```
+conda create -n fgn python=3.11
+```
+Install Pytorch. Recommend using GPU version if memory > 20GB
+```
+conda install pytorch torchvision torchaudio cpuonly -c pytorch
+```
+Install [PyG](https://github.com/pyg-team/pytorch_geometric).
+```
+conda install pyg -c pyg
+```
+Install other dependencies.
+```
+cd gns-fragment
+pip install -r requirements.txt
 ```
 
-> Resume training
+## Data
+Data folder following structure
+```
+├──($data_path)/
+│ ├── 0.2_4/
+│   ├── d3plot
+│   ├── d3plot01
+│   ├── d3plot02
+│   └── ...
+│ ├── 0.3_4/
+│ ├── 0.4_4/
+│ ├── ...
+│ └── meatadata.json
 
-To resume training specify `model_file` and `train_state_file`:
-
-```shell
-export DATASET_NAME="Sand"
-export WORK_DIR=${WORK_DIR}/
-python3 -m gns.train --data_path="${WORK_DIR}/datasets/${DATASET_NAME}/" --model_path="${WORK_DIR}/models/${DATASET_NAME}/" --output_path="${WORK_DIR}/rollouts/${DATASET_NAME}/" --model_file="model.pt" --train_state_file="train_state.pt" -ntraining_steps=100
+```
+Run the following to extract all data from d3plot to numpy. Each case will result in a .npz file saved in the case subfolder, e.g., 0.2_4/0.2_4.npz, which will then be used for FGN inference.
+```
+python .\lsdyna\d3plot_to_npz.py --data_path=$PATH_TO_DATA
 ```
 
-> Rollout
-```shell
-python3 -m gns.train --mode='rollout' --data_path='${WORK_DIR}/datasets/${DATASET_NAME}/' --model_path='${WORK_DIR}/models/${DATASET_NAME}/' --model_file='model.pt' --output_path='${WORK_DIR}/rollouts'
+## Inference
+FGN inference on all cases (.npz) with in the data folder including subfolder. The inference can go as many steps as you want, where each step is of 0.06 ms.
+```
+python -m gns.inference --data_path=$PATH_TO_DATA --nsteps=81
 ```
 
-> Render
-```shell
- python3 -m gns.render_rollout --rollout_path='${WORK_DIR}/rollouts/${DATASET_NAME}/rollout_0.pkl' 
+## Result
+After running it should generate all figures and csvs, which are all saved in the same output folder. It should look like
 ```
-
-![Sand rollout](figs/rollout_0.gif)
-> GNS prediction of Sand rollout after training for 2 million steps.
-
-## Datasets
-
-The data loader provided with this PyTorch implementation utilizes the more general `.npz` format. The `.npz` format includes a list of
-tuples of arbitrary length where each tuple is for a different training trajectory
-and is of the form `(position, particle_type)`. `position` is a 3-D tensor of
-shape `(n_time_steps, n_particles, n_dimensions)` and `particle_type` is
-a 1-D tensor of shape `(n_particles)`.  
-
-The dataset contains:
-
-* Metadata file with dataset information (sequence length, dimensionality, box bounds, default connectivity radius, statistics for normalization, ...):
-
-* npz containing data for all trajectories (particle types, positions, global context, ...):
-
-We provide the following datasets:
-  * `WaterDropSample` (smallest dataset)
-  * `Sand`
-  * `SandRamps`
-
-Download the dataset from [UT Box](https://utexas.app.box.com/s/p7kfg9vb742ofl53xu9rkwdjjukcva1p)
-
-
-## Building environment on TACC LS6 and Frontera
-
-- to setup a virtualenv
-
-```shell
-sh ./build_venv.sh
+├──($data_path)/
+│ ├── 0.2_4/
+|   ├── d3plot.npz
+│   ├── d3plot
+│   ├── d3plot01
+│   ├── d3plot02
+│   └── ...
+│ ├── 0.3_4/
+│ ├── 0.4_4/
+│ ├── ...
+│ ├── meatadata.json
+| └── output/
+|       ├── 0.2_4/
+|           ├── eps/
+|           ├── fragment/
+|           ├── mass/
+|           └── property/
+|       ├── 0.3_4/
+|       └── ...
 ```
-
-- check tests run sucessfully.
-- start your environment
-
-```shell
-source start_venv.sh 
-```
-
-### Acknowledgement
-This code is based upon work supported by the National Science Foundation under Grant OAC-2103937.
+![Example Image of EPS](/figures/eps_top_step_80.png "Effective Plastic Strain")
+![Example Image of EPS](/figures/fragment_step_80.png "Effective Plastic Strain")
 
