@@ -293,15 +293,19 @@ def main(sample_path, charge_weight, particle_trajectories, particle_strains, pa
         masked_particle_previous_position = particle_trajectories[step-1, mask]
         fragments = compute_fragment(masked_particle_position, dist_thres=10.2, max_fragment_size=100)
         fragments_centre, fragments_mass, fragments_diameter, fragments_vel = compute_fragment_property(masked_particle_position, masked_particle_previous_position, fragments)
-        save_property_csv(fragments_centre, fragments_mass, fragments_diameter, fragments_vel, 
-                          case=output_path.name, step=step, savename=str(property_dir / f'fragments_properties_step_{step}.csv'))
-
-        mass_distribution = compute_mass_distribution(fragments_mass, fragments_diameter)
-        plot_mass_distribution_bar(mass_distribution, savename=str(mass_dir/ f'mass_step_{step}'))
-        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='bot', savename=str(eps_dir/ f'eps_bot_step_{step}'))
-        plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='top', savename=str(eps_dir/ f'eps_top_step_{step}'))
-        plot_fragment(masked_particle_position, fragments, fragments_vel, case=case_name, savename=str(fragment_dir/ f'fragment_step_{step}'))
-
+        try:
+            save_property_csv(fragments_centre, fragments_mass, fragments_diameter, fragments_vel, 
+                              case=output_path.name, step=step, savename=str(property_dir / f'fragments_properties_step_{step}.csv'))
+            mass_distribution = compute_mass_distribution(fragments_mass, fragments_diameter)                                    
+            plot_mass_distribution_bar(mass_distribution, savename=str(mass_dir/ f'mass_step_{step}'))
+            plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='bot', savename=str(eps_dir/ f'eps_bot_step_{step}'))
+            plot_eps(particle_trajectories[step], particle_strains[step], particle_type, eps_bug_mask, case=case_name, view='top', savename=str(eps_dir/ f'eps_top_step_{step}'))
+            plot_fragment(masked_particle_position, fragments, fragments_vel, case=case_name, savename=str(fragment_dir/ f'fragment_step_{step}'))
+        
+        except IndexError:
+            print(f"No fragments, skipping {case_name}")
+            continue
+        
 
 if __name__ == '__main__':
     # Define the conditions for fragment filtering
