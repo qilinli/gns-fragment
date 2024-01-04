@@ -303,7 +303,7 @@ def main(sample_path, charge_weight, particle_trajectories, particle_strains, pa
             plot_fragment(masked_particle_position, fragments, fragments_vel, case=case_name, savename=str(fragment_dir/ f'fragment_step_{step}'))
         
         except IndexError:
-            print(f"No fragments, skipping {case_name}")
+            print(f"No fragments, skipping step {step} for {case_name}")
             continue
         
 
