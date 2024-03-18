@@ -196,7 +196,7 @@ def load_sample(sample_path, charge_weight, metadata, device):
     
 def main(_):
     # Initialisation
-    device = 'cuda'
+    device = 'cpu'
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)
     
@@ -244,7 +244,7 @@ def main(_):
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type'],
-                             nsteps
+                             nsteps + 10
                             )
         postprocessing_time = time.time() - post_processing_start_time
         print(f"Finished. it takes {case_rollout_time:.0f}s and {postprocessing_time:.0f}s "
