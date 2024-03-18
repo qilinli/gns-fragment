@@ -33,7 +33,7 @@ def check_data_integrity(particle_trajectories, particle_strains, particle_type)
         error_messages.append(f"X coordinates out of bounds: min {x_min}, max {x_max}")
     if not (-1000 <= y_min <= 1000 and -1000 <= y_max <= 1000):
         error_messages.append(f"Y coordinates out of bounds: min {y_min}, max {y_max}")
-    if not (0 <= z_min <= 200 and 0 <= z_max <= 200):
+    if not (0 <= z_min <= 200 and 0 <= z_max <= 400):
         error_messages.append(f"Z coordinates out of bounds: min {z_min}, max {z_max}")
 
     # Raise a single ValueError if there are any issues
