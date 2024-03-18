@@ -44,9 +44,9 @@ python .\lsdyna\d3plot_to_npz.py --data_path=$PATH_TO_DATA
 ```
 
 ## Inference
-FGN inference on all cases (.npz) with in the data folder including subfolder. The inference can go as many steps as you want, where each step is of 0.06 ms.
+FGN inference on all cases (.npz) with in the data folder including subfolder. The inference can go as many steps as you want, where each step is of 0.06 ms. Detonation_xy specifies the xy coordinates of the explosive source (z is controled by standoff distance).
 ```
-python -m gns.inference --data_path=$PATH_TO_DATA --nsteps=81
+python -m gns.inference --data_path=$PATH_TO_DATA --nsteps=81 --detonation_xy=0,0
 ```
 
 ## Result

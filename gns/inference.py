@@ -28,6 +28,7 @@ flags.DEFINE_integer('layers', 5, help='Number of GNN layers.')
 flags.DEFINE_integer('hidden_dim', 64, help='Number of neurons in hidden layers.')
 flags.DEFINE_integer('dim', 3, help='The dimension of concrete simulation.')
 flags.DEFINE_float('noise_std', 5e-4, help='The std deviation of the noise.')
+flags.DEFINE_list('detonation_xy', '0, 0', 'A comma-separated values for xy coordinates of detonation point')
 
 # Inference parameters
 flags.DEFINE_integer('nsteps', 81, help='The total number of rollout steps. Each step is 0.06 ms.')
@@ -195,7 +196,7 @@ def load_sample(sample_path, charge_weight, metadata, device):
     
 def main(_):
     # Initialisation
-    device = 'cpu'
+    device = 'cuda'
     metadata = reading_utils.read_metadata(FLAGS.data_path)
     simulator = _get_simulator(metadata, FLAGS.noise_std, FLAGS.noise_std, device)
     
@@ -219,6 +220,9 @@ def main(_):
     # Find all .npz files recursively in data_path
     dataset = glob.glob(osp.join(FLAGS.data_path, '**', '*.npz'), recursive=True)
     
+    # Define the xy coordinates of explosive source
+    detonation_xy = [float(x) for x in FLAGS.detonation_xy]
+    
     # Inference for each case (npz) found
     for idx, sample_path in enumerate(dataset):
         case_start_time = time.time()
@@ -236,9 +240,11 @@ def main(_):
         post_processing_start_time = time.time()
         post_processing.main(sample_path,
                              charge_weight, 
+                             detonation_xy,
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
-                             sample_output['particle_type']
+                             sample_output['particle_type'],
+                             nsteps
                             )
         postprocessing_time = time.time() - post_processing_start_time
         print(f"Finished. it takes {case_rollout_time:.0f}s and {postprocessing_time:.0f}s "

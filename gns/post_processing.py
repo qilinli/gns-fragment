@@ -19,10 +19,15 @@ MASS_PER_PARTICLE = 0.0024
 MAX_FRAGMENT_SIZE = 100
 n_steps = 100
 
-def compute_particle_mask(init_particle_pos, charge_weight):
-    
+def compute_particle_mask(init_particle_pos, charge_weight, detonation_xy=[0, 0]):
+
     thres = np.sqrt(charge_weight) * 150
-    center_mask =  (init_particle_pos[:, 0] < thres) & (init_particle_pos[:, 0] > -thres) & (init_particle_pos[:, 1] < thres) & (init_particle_pos[:, 1] > -thres)
+    center_mask = (
+        (init_particle_pos[:, 0] < thres + detonation_xy[0]) &
+        (init_particle_pos[:, 0] > -thres + detonation_xy[0]) &
+        (init_particle_pos[:, 1] < thres + detonation_xy[1]) &
+        (init_particle_pos[:, 1] > -thres + detonation_xy[1])
+    )
     
     return center_mask
     
@@ -269,7 +274,7 @@ def compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type
 def compute_max_vel(fragments_vel):
     return (np.linalg.norm(fragments_vel, axis=1)).max()
 
-def main(sample_path, charge_weight, particle_trajectories, particle_strains, particle_type, rollout_step=81):
+def main(sample_path, charge_weight, detonation_xy, particle_trajectories, particle_strains, particle_type, rollout_step=81):
     root_dir = Path(sample_path).parent.parent
     case_name = Path(sample_path).parent.name
     output_path = root_dir / 'output' / case_name
@@ -285,7 +290,7 @@ def main(sample_path, charge_weight, particle_trajectories, particle_strains, pa
     fragment_dir = output_path / 'fragment'
     Path(fragment_dir).mkdir(parents=True, exist_ok=True)
     
-    mask = compute_particle_mask(particle_trajectories[0], charge_weight)
+    mask = compute_particle_mask(particle_trajectories[0], charge_weight, detonation_xy)
     eps_bug_mask = compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type)
     
     for step in range(10, rollout_step, 10):
@@ -304,35 +309,36 @@ def main(sample_path, charge_weight, particle_trajectories, particle_strains, pa
 
 
 if __name__ == '__main__':
+    pass
     # Define the conditions for fragment filtering
-    start_time = time.time()
-    case = 'd3plot4'
-    path = f'/home/jovyan/work/gns-fragment/rollouts/Fragment/inference/input0.4-1ms/{case}.pkl'
+#     start_time = time.time()
+#     case = 'd3plot4'
+#     path = f'/home/jovyan/work/gns-fragment/rollouts/Fragment/inference/input0.4-1ms/{case}.pkl'
 
-    case_dir = Path(f'/home/jovyan/work/gns-fragment/rollouts/Fragment/inference/temp/{case}_0.4-1ms/')
-    property_dir = case_dir / 'property'
-    Path(property_dir).mkdir(parents=True, exist_ok=True)
+#     case_dir = Path(f'/home/jovyan/work/gns-fragment/rollouts/Fragment/inference/temp/{case}_0.4-1ms/')
+#     property_dir = case_dir / 'property'
+#     Path(property_dir).mkdir(parents=True, exist_ok=True)
 
-    mass_dir = case_dir / 'mass'
-    Path(mass_dir).mkdir(parents=True, exist_ok=True)
+#     mass_dir = case_dir / 'mass'
+#     Path(mass_dir).mkdir(parents=True, exist_ok=True)
 
-    eps_dir = case_dir / 'eps'
-    Path(eps_dir).mkdir(parents=True, exist_ok=True)
+#     eps_dir = case_dir / 'eps'
+#     Path(eps_dir).mkdir(parents=True, exist_ok=True)
 
-    fragment_dir = case_dir / 'fragment'
-    Path(fragment_dir).mkdir(parents=True, exist_ok=True)
+#     fragment_dir = case_dir / 'fragment'
+#     Path(fragment_dir).mkdir(parents=True, exist_ok=True)
 
-    try:
-        with open(path, "rb") as file:
-            rollout_data = pickle.load(file)
-    except FileNotFoundError:
-        print(f"File {path} not found.")
+#     try:
+#         with open(path, "rb") as file:
+#             rollout_data = pickle.load(file)
+#     except FileNotFoundError:
+#         print(f"File {path} not found.")
 
-    pred_trajs = rollout_data['pred_trajs']
-    particle_strains = rollout_data['pred_strains']
-    particle_type = rollout_data['particle_type']
+#     pred_trajs = rollout_data['pred_trajs']
+#     particle_strains = rollout_data['pred_strains']
+#     particle_type = rollout_data['particle_type']
    
-    main(case, particle_trajectories, particle_strains, particle_type, rollout_step=81)
+#     main(case, particle_trajectories, particle_strains, particle_type, rollout_step=81)
 
-    elapsed_time = time.time() - start_time
-    print(f"Took {elapsed_time} to finish {case}")
+#     elapsed_time = time.time() - start_time
+#     print(f"Took {elapsed_time} to finish {case}")

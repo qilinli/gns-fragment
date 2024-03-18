@@ -13,7 +13,7 @@ import os
 flags.DEFINE_string("rollout_dir", './rollouts/Fragment/', help="Directory where rollout.pkl are located")
 flags.DEFINE_string("rollout_name", 'rollout_0', help="Name of rollout `.pkl` file")
 flags.DEFINE_integer("step_stride", 3, help="Stride of steps to skip.")
-flags.DEFINE_string("output_postfix", 'front', help="Name of output gif")
+flags.DEFINE_string("output_postfix", 'back', help="Name of output gif")
 
 FLAGS = flags.FLAGS
     
@@ -57,9 +57,6 @@ class Render():
         self.num_steps = trajectory[rollout_cases[0][0]].shape[0]
         self.boundaries = rollout_data["metadata"]["bounds"]
         self.mask = rollout_data['particle_types'] != -1
-        #id = int(FLAGS.rollout_name.split('_')[0])
-        id = 0
-        self.case_name = rollout_data["metadata"]["file_test"][id]
         
     def color_map(self, datacase):
         """
@@ -76,14 +73,14 @@ class Render():
         return color_map
 
     def render_gif_animation(
-            self, point_size=1, timestep_stride=3, vertical_camera_angle=20, viewpoint_rotation=0.5, roll=None
+            self, point_size=1, timestep_stride=3, vertical_camera_angle=0, horizontal_camera_angle=0, roll=None
     ):
         """
         Render `.gif` animation from `,pkl` trajectory.
         :param point_size: particle size for visualization
         :param timestep_stride: numer of timesteps to stride for visualization (i.e., sampling rate)
         :param vertical_camera_angle: camera angle in airplane view in 3d render
-        :param viewpoint_rotation: speed of viewpoint rotation in 3d render
+        :param horizontal_camera_angle: camera angle in airplane view in 3d render
         :return: gif format animation
         """
         # Init figures
@@ -130,7 +127,7 @@ class Render():
                 axes[j].set_xlabel('x', labelpad=20)
                 axes[j].set_ylabel('')
                 axes[j].set_yticks([])
-                axes[j].set_zlabel('z', labelpad=15)
+                axes[j].set_zlabel('z', labelpad=5)
                 axes[j].set_xlim([float(xboundary[0]), float(xboundary[1])])
                 axes[j].set_ylim([float(yboundary[0]), float(yboundary[1])])
                 axes[j].set_zlim([float(zboundary[0]), float(zboundary[1])])
@@ -141,15 +138,15 @@ class Render():
                                 color=np.array(color_map[i])[self.mask]
                                )
                 # rotate viewpoints angle little by little for each timestep
-                axes[j].view_init(elev=vertical_camera_angle, azim=0, roll=roll, vertical_axis='z')
+                axes[j].view_init(elev=vertical_camera_angle, azim=horizontal_camera_angle, roll=roll, vertical_axis='z')
                 axes[j].grid(True, which='both')
-                axes[j].set_title(f"{render_datacases[j]}-{self.case_name}, Step {i}")
+                axes[j].set_title(f"{render_datacases[j]}, Time: {i*0.06:.2f} ms")
 
         # Creat animation
         ani = animation.FuncAnimation(
-            fig, animate, frames=np.arange(10, self.num_steps, timestep_stride), interval=10)
+            fig, animate, frames=np.arange(0, self.num_steps, timestep_stride), interval=10)
 
-        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=100, fps=1, writer='Pillow')
+        ani.save(f'{self.output_dir}{self.output_name}.gif', dpi=100, fps=5, writer='Pillow')
         print(f"Animation saved to: {self.output_dir}{self.output_name}.gif")
 
 
@@ -165,7 +162,7 @@ def main(_):
         point_size=0.5,
         timestep_stride=FLAGS.step_stride,
         vertical_camera_angle=0,
-        viewpoint_rotation=0,
+        horizontal_camera_angle=-90,
         roll=0
     )
 
