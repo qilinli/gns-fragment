@@ -33,6 +33,10 @@ flags.DEFINE_list('detonation_xy', '0, 0', 'A comma-separated values for xy coor
 # Inference parameters
 flags.DEFINE_integer('nsteps', 81, help='The total number of rollout steps. Each step is 0.06 ms.')
 
+# Post-processing parameters
+flags.DEFINE_bool('expanded_search', False, help='If to serch fragments in expanded area. Takes long.')
+
+
 FLAGS = flags.FLAGS
 
 #Stats = collections.namedtuple('Stats', ['mean', 'std'])
@@ -241,6 +245,7 @@ def main(_):
         post_processing.main(sample_path,
                              charge_weight, 
                              detonation_xy,
+                             FLAGS.expanded_search,
                              sample_output['pred_trajs'], 
                              sample_output['pred_strains'], 
                              sample_output['particle_type'],

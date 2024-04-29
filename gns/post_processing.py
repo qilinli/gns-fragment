@@ -19,9 +19,13 @@ MASS_PER_PARTICLE = 0.0024
 MAX_FRAGMENT_SIZE = 100
 n_steps = 100
 
-def compute_particle_mask(init_particle_pos, charge_weight, detonation_xy=[0, 0]):
-
-    thres = np.sqrt(charge_weight) * 150
+def compute_particle_mask(init_particle_pos, charge_weight, detonation_xy=[0, 0], expanded_serch=False):
+    
+    if expanded_serch:
+        thres = np.sqrt(charge_weight) * 250
+    else:
+        thres = np.sqrt(charge_weight) * 150
+        
     center_mask = (
         (init_particle_pos[:, 0] < thres + detonation_xy[0]) &
         (init_particle_pos[:, 0] > -thres + detonation_xy[0]) &
@@ -274,7 +278,7 @@ def compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type
 def compute_max_vel(fragments_vel):
     return (np.linalg.norm(fragments_vel, axis=1)).max()
 
-def main(sample_path, charge_weight, detonation_xy, particle_trajectories, particle_strains, particle_type, rollout_step=81):
+def main(sample_path, charge_weight, detonation_xy, expanded_search, particle_trajectories, particle_strains, particle_type, rollout_step=81):
     root_dir = Path(sample_path).parent.parent
     case_name = Path(sample_path).parent.name
     output_path = root_dir / 'output' / case_name
@@ -290,7 +294,7 @@ def main(sample_path, charge_weight, detonation_xy, particle_trajectories, parti
     fragment_dir = output_path / 'fragment'
     Path(fragment_dir).mkdir(parents=True, exist_ok=True)
     
-    mask = compute_particle_mask(particle_trajectories[0], charge_weight, detonation_xy)
+    mask = compute_particle_mask(particle_trajectories[0], charge_weight, detonation_xy, expanded_search)
     eps_bug_mask = compute_zero_eps_mask(particle_trajectories, particle_strains, particle_type)
     
     for step in range(10, rollout_step, 10):
