@@ -1,8 +1,8 @@
 # Fragmentation Graph Network (FGN)
-> This is the official implementation of FGN. 
+> This is the official implementation of FGN.
+> Li, Q., Wang, Z., Chen, W., Li, L. and Hao, H., 2024. Advancing blast fragmentation simulation of RC slabs: A graph neural network approach. Engineering Structures, 308, p.118009
 The code is heavily based on the [Pytorch version of GNS](https://github.com/geoelements/gns) and [Tensorflow version of GNS](https://github.com/deepmind/deepmind-research/tree/master/learning_to_simulate).
-> 
-Li, Q., Wang, Z., Chen, W., Li, L. and Hao, H., 2024. Advancing blast fragmentation simulation of RC slabs: A graph neural network approach. Engineering Structures, 308, p.118009
+
 
 ## Installation
 Create python environmen. The code is tested with Python 3.11 and Pytorch 2.1.
